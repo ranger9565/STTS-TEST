@@ -1,0 +1,39 @@
+{
+  "name": "hossein-stts",
+  "version": "1.0.0",
+  "private": true,
+  "description": "اپلیکیشن آفلاین حسین STTS: صوت‌به‌متن، متن‌به‌صوت، اسکنر",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "build:apk": "eas build --platform android --profile preview"
+  },
+  "dependencies": {
+    "expo": "~54.0.0",
+    "expo-router": "~4.0.0",
+    "expo-file-system": "~19.0.0",
+    "expo-sharing": "~13.0.0",
+    "expo-haptics": "~14.0.0",
+    "expo-av": "~15.0.0",
+    "expo-camera": "~16.0.0",
+    "expo-image-picker": "~16.0.0",
+    "expo-document-picker": "~13.0.0",
+    "expo-sqlite": "~15.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.5",
+    "react-native-svg": "15.8.0",
+    "react-native-reanimated": "~3.16.1",
+    "react-native-gesture-handler": "~2.20.2",
+    "react-native-safe-area-context": "4.12.0",
+    "onnxruntime-react-native": "^1.19.2"
+  },
+  "devDependencies": {
+    "@types/react": "~18.3.12",
+    "typescript": "^5.9.0",
+    "jest": "^29.7.0",
+    "jest-expo": "~54.0.0"
+  }
+}
