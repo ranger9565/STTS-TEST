@@ -1,0 +1,36 @@
+
+# Dependencies
+node_modules/
+.expo/
+
+# Build outputs
+android/build/
+android/app/build/
+android/.gradle/
+android/app/.cxx/
+
+# ===== مدل‌های AI — حجیم، نباید در ریپو باشند =====
+android/app/src/main/assets/vosk/
+android/app/src/main/assets/piper/
+android/app/src/main/assets/espeak-ng-data/
+android/app/src/main/assets/tessdata/
+
+# EAS / Expo
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+.env
+.env.local
+
+# iOS
+ios/
+
+# Misc
+.DS_Store
+*.log
+npm-debug.*
+yarn-debug.*
+yarn-error.*
