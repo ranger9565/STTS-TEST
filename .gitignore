@@ -28,6 +28,9 @@ android/app/src/main/assets/tessdata/
 # iOS
 ios/
 
+# Lock files
+package-lock.json
+
 # Misc
 .DS_Store
 *.log
