@@ -1,0 +1,22 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'expo-modules-core'
+
+android {
+  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 24)
+    targetSdkVersion safeExtGet("targetSdkVersion", 34)
+  }
+}
+
+repositories {
+  maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  // Tesseract4Android — پشتیبانی از tessdata و زبان‌های مختلف
+  implementation 'cz.adaptech.tesseract4android:tesseract4android:4.8.0'
+}

@@ -1,0 +1,19 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'expo-modules-core'
+
+android {
+  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 24)
+    targetSdkVersion safeExtGet("targetSdkVersion", 34)
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  // ONNX Runtime Android — از طریق وابستگی transitiveای onnxruntime-react-native در دسترس است؛
+  // اینجا صریح اضافه می‌شود تا Piper مستقیماً به آن دسترسی داشته باشد.
+  implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.2'
+}

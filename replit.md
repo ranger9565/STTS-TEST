@@ -43,7 +43,7 @@ Expo / React Native / TypeScript (strict) / pnpm / SQLite Native
 - OCR: Tesseract4Android + fas
 
 ## قدم بعدی
-ادامه ساخت رابط STT (لایه JS) و اسکلت UI پنل اصلی.
+دانلود مدل‌های AI و اجرای `npx expo prebuild && eas build` — جزئیات در MODELS.md.
 
 ## User preferences
 - قانون قفل‌شده: اگر خطای Jest/tsconfig/moduleNameMapper پیش اومد، فقط با testPathIgnorePatterns رد کن، وقت نذار روش.

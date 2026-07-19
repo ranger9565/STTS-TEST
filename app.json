@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "STTS",
+    "slug": "hossein-stts",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "platforms": ["android"],
+    "android": {
+      "package": "com.hossein.stts",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        { "cameraPermission": "برای اسکن متن، دسترسی به دوربین لازم است." }
+      ],
+      "./modules/vosk-module/expo-plugin",
+      "./modules/piper-module/expo-plugin",
+      "./modules/tesseract-module/expo-plugin"
+    ],
+    "scheme": "stts"
+  }
+}
