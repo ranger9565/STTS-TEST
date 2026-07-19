@@ -29,6 +29,13 @@
       "./modules/tesseract-module/expo-plugin",
       "expo-sqlite"
     ],
-    "scheme": "stts"
+    "scheme": "stts",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "735b521f-b3d6-40cf-a13f-18ff91a71540"
+      }
+    },
+    "owner": "ranger9565s-team"
   }
 }
