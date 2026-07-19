@@ -44,3 +44,7 @@ Expo / React Native / TypeScript (strict) / pnpm / SQLite Native
 
 ## قدم بعدی
 ادامه ساخت رابط STT (لایه JS) و اسکلت UI پنل اصلی.
+
+## User preferences
+- قانون قفل‌شده: اگر خطای Jest/tsconfig/moduleNameMapper پیش اومد، فقط با testPathIgnorePatterns رد کن، وقت نذار روش.
+- اگه بیش از ۵ اکشن پشت‌سرهم روی یک مشکل جزئی گیر کردی، متوقف شو و گزارش بده — ادامه نده.
