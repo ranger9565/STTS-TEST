@@ -26,16 +26,16 @@
       ],
       "./modules/vosk-module/expo-plugin",
       "./modules/piper-module/expo-plugin",
-      "./modules/tesseract-module/expo-plugin",
-      "expo-sqlite"
+      "./modules/tesseract-module/expo-plugin"
     ],
     "scheme": "stts",
     "extra": {
-      "router": {},
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "735b521f-b3d6-40cf-a13f-18ff91a71540"
+        "projectId": "ab6c79e2-2589-421b-8068-93fdbcd2b4fa"
       }
-    },
-    "owner": "ranger9565s-team"
+    }
   }
 }
