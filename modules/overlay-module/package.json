@@ -1,0 +1,13 @@
+{
+  "name": "expo-overlay",
+  "version": "1.0.0",
+  "description": "Expo module for a persistent system-wide floating bubble (Android overlay window)",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}

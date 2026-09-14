@@ -20,7 +20,8 @@ export type PanelAction =
   | { type: 'HIDE_BUBBLE' }
   | { type: 'SELECT_HISTORY_ITEM'; itemId: string | null }
   | { type: 'OPEN_MIC_PANEL' }
-  | { type: 'CLOSE_MIC_PANEL' };
+  | { type: 'CLOSE_MIC_PANEL' }
+  | { type: 'OPEN_MIC_PANEL_DIRECT' };
 
 export const initialPanelState: PanelState = {
   activeFeature: null,
@@ -56,6 +57,10 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
       return { ...state, micPanelOpen: true };
     case 'CLOSE_MIC_PANEL':
       return { ...state, micPanelOpen: false };
+    case 'OPEN_MIC_PANEL_DIRECT':
+      // برای زمانی که کاربر از طریق حباب سیستمی (خارج از اپ) دیپ‌لینک می‌زنه؛
+      // یک اکشن اتمیک تا با منطق toggle موجود در SELECT_FEATURE تداخل نکنه.
+      return { ...state, activeFeature: 'stt', bubbleVisible: true, micPanelOpen: true };
     default:
       return state;
   }

@@ -22,6 +22,7 @@
     "expo-image-picker": "~17.0.11",
     "expo-linking": "~8.0.12",
     "expo-modules-core": "~3.0.30",
+    "expo-overlay": "file:./modules/overlay-module",
     "expo-piper": "file:./modules/piper-module",
     "expo-router": "~6.0.24",
     "expo-sharing": "~14.0.8",

@@ -13,7 +13,10 @@
         "android.permission.RECORD_AUDIO",
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_SPECIAL_USE"
       ]
     },
     "plugins": [
@@ -25,6 +28,7 @@
         }
       ],
       "./modules/vosk-module/expo-plugin",
+      "./modules/overlay-module/expo-plugin",
       "./modules/piper-module/expo-plugin",
       "./modules/tesseract-module/expo-plugin"
     ],

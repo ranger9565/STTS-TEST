@@ -38,3 +38,19 @@ test('SELECT_HISTORY_ITEM آیتم انتخاب‌شده را تنظیم می‌
   const state = panelReducer(initialPanelState, { type: 'SELECT_HISTORY_ITEM', itemId: 'abc' });
   expect(state.selectedHistoryItemId).toBe('abc');
 });
+
+test('OPEN_MIC_PANEL_DIRECT فیچر stt را فعال و پنل میکروفون را مستقیم باز می‌کند', () => {
+  const state = panelReducer(initialPanelState, { type: 'OPEN_MIC_PANEL_DIRECT' });
+  expect(state.activeFeature).toBe('stt');
+  expect(state.bubbleVisible).toBe(true);
+  expect(state.micPanelOpen).toBe(true);
+});
+
+test('HIDE_BUBBLE پنل میکروفون را هم می‌بندد', () => {
+  const state = panelReducer(
+    { ...initialPanelState, bubbleVisible: true, micPanelOpen: true },
+    { type: 'HIDE_BUBBLE' },
+  );
+  expect(state.bubbleVisible).toBe(false);
+  expect(state.micPanelOpen).toBe(false);
+});

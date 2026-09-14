@@ -1,11 +1,13 @@
-import React, { useReducer } from 'react';
+import React, { useEffect, useReducer } from 'react';
 import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
 import { FloatingBubble } from './FloatingBubble';
 import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel } from './HistoryPanel';
+import { useOverlayBubble } from './useOverlayBubble';
 
 // کل اپ باید راست‌چین باشد؛ این تنظیم یک‌بار در ورودی اپ (App.tsx) هم باید فعال شود
 I18nManager.forceRTL(true);
@@ -19,6 +21,31 @@ const FEATURE_LABELS: Record<'tts' | 'stt' | 'ocr' | 'settings', string> = {
 
 export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
+
+  // وقتی حباب میکروفون باید فعال باشه و پنلش بسته‌ست، با بک‌گراند رفتن اپ
+  // همون حباب به‌صورت حباب سیستمی (روی همه‌ی برنامه‌ها) ظاهر می‌شه.
+  useOverlayBubble(
+    state.bubbleVisible && state.activeFeature === 'stt' && !state.micPanelOpen,
+  );
+
+  // تپ روی حباب سیستمی، اپ رو با دیپ‌لینک stts://openMic باز می‌کنه؛
+  // اینجا همون رویداد رو می‌گیریم و مستقیم پنل میکروفون رو باز می‌کنیم.
+  useEffect(() => {
+    const openMicPanelFromUrl = (url: string | null) => {
+      if (!url) return;
+      const { hostname, path } = Linking.parse(url);
+      if (hostname === 'openMic' || path === 'openMic') {
+        dispatch({ type: 'OPEN_MIC_PANEL_DIRECT' });
+      }
+    };
+
+    Linking.getInitialURL().then(openMicPanelFromUrl);
+    const subscription = Linking.addEventListener('url', (event) => {
+      openMicPanelFromUrl(event.url);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
