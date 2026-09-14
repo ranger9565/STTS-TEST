@@ -10,18 +10,23 @@ export interface PanelState {
   activeFeature: ActiveFeature;
   bubbleVisible: boolean;
   selectedHistoryItemId: string | null;
+  /** پنل مستطیلی میکروفون (X/میکروفون/پرچم) با تپ روی حباب باز می‌شود */
+  micPanelOpen: boolean;
 }
 
 export type PanelAction =
   | { type: 'SELECT_FEATURE'; feature: ActiveFeature }
   | { type: 'TOGGLE_BUBBLE' }
   | { type: 'HIDE_BUBBLE' }
-  | { type: 'SELECT_HISTORY_ITEM'; itemId: string | null };
+  | { type: 'SELECT_HISTORY_ITEM'; itemId: string | null }
+  | { type: 'OPEN_MIC_PANEL' }
+  | { type: 'CLOSE_MIC_PANEL' };
 
 export const initialPanelState: PanelState = {
   activeFeature: null,
   bubbleVisible: false,
   selectedHistoryItemId: null,
+  micPanelOpen: false,
 };
 
 /**
@@ -44,9 +49,13 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case 'TOGGLE_BUBBLE':
       return { ...state, bubbleVisible: !state.bubbleVisible };
     case 'HIDE_BUBBLE':
-      return { ...state, bubbleVisible: false };
+      return { ...state, bubbleVisible: false, micPanelOpen: false };
     case 'SELECT_HISTORY_ITEM':
       return { ...state, selectedHistoryItemId: action.itemId };
+    case 'OPEN_MIC_PANEL':
+      return { ...state, micPanelOpen: true };
+    case 'CLOSE_MIC_PANEL':
+      return { ...state, micPanelOpen: false };
     default:
       return state;
   }

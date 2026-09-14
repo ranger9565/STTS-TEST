@@ -3,6 +3,7 @@ import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
 import { FloatingBubble } from './FloatingBubble';
+import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel } from './HistoryPanel';
 
@@ -59,10 +60,30 @@ export function MainPanel() {
 
       <AudioBar selectedHistoryItemId={state.selectedHistoryItemId} />
 
-      {state.bubbleVisible && state.activeFeature && (
+      {state.bubbleVisible && state.activeFeature && !state.micPanelOpen && (
         <FloatingBubble
           mode={state.activeFeature === 'ocr' ? 'ocr' : 'stt'}
-          onLongPress3s={() => dispatch({ type: 'HIDE_BUBBLE' })}
+          onTap={() => {
+            // TODO(فاز بعد): پنل اسکن گوگل‌لنزی برای mode==='ocr'
+            if (state.activeFeature === 'stt') {
+              dispatch({ type: 'OPEN_MIC_PANEL' });
+            }
+          }}
+          onClose={() => dispatch({ type: 'HIDE_BUBBLE' })}
+        />
+      )}
+
+      {state.micPanelOpen && state.activeFeature === 'stt' && (
+        <MicPanel
+          isListening={false}
+          languageLabel="فا"
+          onClose={() => dispatch({ type: 'CLOSE_MIC_PANEL' })}
+          onToggleMic={() => {
+            /* اتصال به vosk-bridge در فاز بعد */
+          }}
+          onLanguagePress={() => {
+            /* باز شدن انتخاب‌گر زبان در فاز بعد */
+          }}
         />
       )}
     </SafeAreaView>
