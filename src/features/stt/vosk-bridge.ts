@@ -3,15 +3,21 @@
  *
  * این فایل:
  *   ۱. ماژول Vosk native را مقداردهی می‌کند
- *   ۲. ضبط میکروفون را از طریق expo-av مدیریت می‌کند
- *   ۳. داده‌های صوتی PCM را به موتور Vosk می‌فرستد
- *   ۴. نتایج را از طریق callback به لایه بالا می‌دهد
+ *   ۲. جلسه ضبط زنده میکروفون را آغاز/پایان می‌دهد (ضبط واقعی در کاتلین/AudioRecord انجام می‌شود)
+ *   ۳. رویدادهای نتیجه جزئی/نهایی/خطا را از native گوش می‌دهد و به لایه بالا (callback) می‌دهد
  */
 
-import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import { voskInit, voskStart, voskStop, voskDestroy, VoskFinalResult } from '../../../modules/vosk-module/src';
-import { trimTrailingSilence } from './silence-trimmer';
+import {
+  voskInit,
+  voskStart,
+  voskStop,
+  voskDestroy,
+  addPartialResultListener,
+  addFinalResultListener,
+  addErrorListener,
+  VoskFinalResult,
+} from '../../../modules/vosk-module/src';
 
 export interface VoskBridgeCallbacks {
   onPartial: (text: string) => void;
@@ -30,8 +36,9 @@ const DEFAULT_SAMPLE_RATE = 16000;
 /** مسیر پیش‌فرض مدل فارسی Vosk در فضای ذخیره‌سازی اپ */
 export const VOSK_MODEL_PATH = `${FileSystem.documentDirectory}vosk-model-small-fa-0.42`;
 
-let recording: Audio.Recording | null = null;
 let isInitialized = false;
+let isListening = false;
+let activeSubscriptions: { remove: () => void }[] = [];
 
 /** مقداردهی اولیه موتور Vosk — یک بار در startup اپ */
 export async function initVosk(config: VoskBridgeConfig): Promise<void> {
@@ -41,8 +48,9 @@ export async function initVosk(config: VoskBridgeConfig): Promise<void> {
 }
 
 /**
- * شروع ضبط میکروفون و ارسال صوت به Vosk.
- * نتایج از طریق callbacks برمی‌گردند.
+ * شروع ضبط زنده میکروفون و تشخیص گفتار.
+ * ضبط صدا کاملاً در سمت native (AudioRecord در کاتلین) انجام می‌شود؛
+ * این تابع فقط listener های نتیجه را وصل کرده و جلسه Vosk را آغاز می‌کند.
  */
 export async function startRecording(
   callbacks: VoskBridgeCallbacks,
@@ -51,99 +59,46 @@ export async function startRecording(
   if (!isInitialized) {
     throw new Error('Vosk bridge not initialized — call initVosk() first');
   }
-  if (recording) {
+  if (isListening) {
     throw new Error('ضبط در حال انجام است؛ ابتدا stopRecording() فراخوانی کنید');
   }
 
-  // درخواست مجوز میکروفون
-  const { granted } = await Audio.requestPermissionsAsync();
-  if (!granted) {
-    throw new Error('دسترسی به میکروفون رد شد');
+  activeSubscriptions = [
+    addPartialResultListener((event) => callbacks.onPartial(event.partial)),
+    addFinalResultListener((event) => callbacks.onFinal(event.text)),
+    addErrorListener((event) => callbacks.onError(new Error(event.error))),
+  ];
+
+  try {
+    await voskStart(sampleRate);
+    isListening = true;
+  } catch (err) {
+    activeSubscriptions.forEach((s) => s.remove());
+    activeSubscriptions = [];
+    throw err;
   }
-
-  await Audio.setAudioModeAsync({
-    allowsRecordingIOS: true,
-    playsInSilentModeIOS: true,
-  });
-
-  // آغاز جلسه تشخیص Vosk
-  await voskStart(sampleRate);
-
-  // تنظیم ضبط با فرمت PCM 16-bit
-  const recordingOptions: Audio.RecordingOptions = {
-    android: {
-      extension: '.pcm',
-      outputFormat: Audio.AndroidOutputFormat.DEFAULT,
-      audioEncoder: Audio.AndroidAudioEncoder.DEFAULT,
-      sampleRate,
-      numberOfChannels: 1,
-      bitRate: sampleRate * 16,
-    },
-    ios: {
-      extension: '.caf',
-      audioQuality: Audio.IOSAudioQuality.HIGH,
-      sampleRate,
-      numberOfChannels: 1,
-      bitRate: sampleRate * 16,
-      linearPCMBitDepth: 16,
-      linearPCMIsBigEndian: false,
-      linearPCMIsFloat: false,
-    },
-    web: {},
-  };
-
-  recording = new Audio.Recording();
-  await recording.prepareToRecordAsync(recordingOptions);
-  await recording.startAsync();
-
-  // پردازش تدریجی صدا با interval برای ارسال به Vosk
-  const intervalId = setInterval(async () => {
-    if (!recording) {
-      clearInterval(intervalId);
-      return;
-    }
-    try {
-      const status = await recording.getStatusAsync();
-      if (!status.isRecording) {
-        clearInterval(intervalId);
-        return;
-      }
-      // ارسال chunk صوتی به Vosk برای تشخیص تدریجی
-      // (در پیاده‌سازی کامل‌تر، URI صوتی خوانده و به Vosk فرستاده می‌شود)
-      callbacks.onPartial('...');
-    } catch (err) {
-      // نادیده می‌گیریم خطاهای interval را
-    }
-  }, 500);
-
-  // نگه‌داشتن intervalId برای پاکسازی
-  (recording as any).__intervalId = intervalId;
 }
 
 /**
- * توقف ضبط و دریافت نتیجه نهایی از Vosk.
+ * توقف ضبط زنده و دریافت نتیجه نهایی از Vosk.
  */
 export async function stopRecording(): Promise<string> {
-  if (!recording) {
+  if (!isListening) {
     throw new Error('ضبطی در جریان نیست');
   }
 
-  // پاکسازی interval
-  const intervalId = (recording as any).__intervalId;
-  if (intervalId) clearInterval(intervalId);
-
-  await recording.stopAndUnloadAsync();
-  const uri = recording.getURI();
-  recording = null;
-
-  // دریافت نتیجه نهایی از Vosk
   const result: VoskFinalResult = await voskStop();
+  isListening = false;
+
+  activeSubscriptions.forEach((s) => s.remove());
+  activeSubscriptions = [];
+
   return result.text;
 }
 
 /** آزادسازی کامل منابع Vosk */
 export async function destroyVosk(): Promise<void> {
-  if (recording) {
+  if (isListening) {
     await stopRecording().catch(() => {});
   }
   await voskDestroy();
