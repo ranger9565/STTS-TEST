@@ -3,7 +3,8 @@
  *
  * وضعیت‌ها و رویدادها از stt-session.ts می‌آیند؛
  * ارتباط با موتور Vosk از طریق vosk-bridge.ts انجام می‌شود؛
- * تایپ متن نهایی در فیلد فوکوس‌شده‌ی هر اپ دیگر از طریق typing-module انجام می‌شود.
+ * تایپ متن نهایی در فیلد فوکوس‌شده‌ی هر اپ دیگر از طریق typing-module انجام می‌شود؛
+ * هر نتیجه‌ی نهایی در تاریخچه‌ی محلی (SQLite) هم ذخیره می‌شود.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -25,6 +26,9 @@ import {
   isAccessibilityServiceEnabled,
   typeText,
 } from '../../../modules/typing-module/src';
+import { addHistoryItem } from '../../shared/services/history-store';
+
+const STT_HISTORY_SOURCE_LABEL = 'میکروفون';
 
 export interface UseSttResult {
   session: SttSession;
@@ -81,8 +85,18 @@ export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
             setSession((prev) =>
               applyPartialResult(prev, { text, isFinal: true }),
             );
-            if (text.trim().length > 0 && isAccessibilityServiceEnabled()) {
-              typeText(text.trim()).catch((err) => {
+
+            const trimmed = text.trim();
+            if (trimmed.length === 0) return;
+
+            try {
+              addHistoryItem(trimmed, STT_HISTORY_SOURCE_LABEL);
+            } catch (err) {
+              setError(err instanceof Error ? err : new Error(String(err)));
+            }
+
+            if (isAccessibilityServiceEnabled()) {
+              typeText(trimmed).catch((err) => {
                 setError(err instanceof Error ? err : new Error(String(err)));
               });
             }
