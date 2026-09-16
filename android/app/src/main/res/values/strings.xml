@@ -1,3 +1,4 @@
 <resources>
   <string name="app_name">STTS</string>
+  <string name="accessibility_service_description">فعال‌سازی این سرویس به STTS اجازه می‌دهد متن تشخیص‌داده‌شده از صدای شما را مستقیماً در فیلد متنی هر اپلیکیشنی که باز است تایپ کند.</string>
 </resources>
