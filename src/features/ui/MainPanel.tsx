@@ -9,6 +9,7 @@ import { AudioBar } from './AudioBar';
 import { HistoryPanel } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
 import { useStt } from '../stt/useStt';
+import { openAccessibilitySettings } from '../../../modules/typing-module/src';
 
 // کل اپ باید راست‌چین باشد؛ این تنظیم یک‌بار در ورودی اپ (App.tsx) هم باید فعال شود
 I18nManager.forceRTL(true);
@@ -107,6 +108,14 @@ export function MainPanel() {
         </View>
       </View>
 
+      {state.activeFeature === 'stt' && state.micPanelOpen && !stt.isTypingEnabled && (
+        <Pressable style={styles.enableTypingBanner} onPress={openAccessibilitySettings}>
+          <Text style={styles.enableTypingText}>
+            برای تایپ خودکار در همه‌ی اپ‌ها، سرویس دسترس‌پذیری STTS را فعال کنید ← لمس کنید
+          </Text>
+        </Pressable>
+      )}
+
       {state.activeFeature === 'stt' && !!stt.partialText && (
         <View style={styles.partialTextBox}>
           <Text style={styles.partialTextValue}>{stt.partialText}</Text>
@@ -166,4 +175,17 @@ const styles = StyleSheet.create({
   partialTextBox: { marginHorizontal: 8, marginBottom: 4, padding: 8, borderRadius: 10 },
   partialTextValue: { fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
   errorTextValue: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl', color: '#FF6666' },
+  enableTypingBanner: {
+    marginHorizontal: 8,
+    marginBottom: 4,
+    padding: 10,
+    borderRadius: 10,
+    backgroundColor: '#2A3A4A',
+  },
+  enableTypingText: {
+    fontSize: 12,
+    textAlign: 'right',
+    writingDirection: 'rtl',
+    color: '#CCE0FF',
+  },
 });
