@@ -1,0 +1,17 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'expo-modules-core'
+
+android {
+  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 26)
+    targetSdkVersion safeExtGet("targetSdkVersion", 34)
+  }
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation "androidx.core:core-ktx:1.13.1"
+}
