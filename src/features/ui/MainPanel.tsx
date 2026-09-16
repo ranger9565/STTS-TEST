@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer } from 'react';
+import React, { useEffect, useReducer, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
@@ -6,10 +6,11 @@ import { panelReducer, initialPanelState } from '../../shared/services/panel-sta
 import { FloatingBubble } from './FloatingBubble';
 import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
-import { HistoryPanel } from './HistoryPanel';
+import { HistoryPanel, HistoryItem } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
 import { useStt } from '../stt/useStt';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
+import { initHistoryDb, getRecentHistory } from '../../shared/services/history-store';
 
 // کل اپ باید راست‌چین باشد؛ این تنظیم یک‌بار در ورودی اپ (App.tsx) هم باید فعال شود
 I18nManager.forceRTL(true);
@@ -23,10 +24,25 @@ const FEATURE_LABELS: Record<'tts' | 'stt' | 'ocr' | 'settings', string> = {
 
 export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
+  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
 
   // اتصال واقعی به موتور Vosk (شروع/توقف ضبط زنده میکروفون)
   const stt = useStt();
   const isListening = stt.session.state === 'listening';
+
+  // مقداردهی اولیه‌ی پایگاه‌داده‌ی تاریخچه و بارگذاری موارد موجود
+  useEffect(() => {
+    initHistoryDb();
+    setHistoryItems(getRecentHistory());
+  }, []);
+
+  // هر بار که یک جمله‌ی نهایی STT ذخیره می‌شود (accumulatedText تغییر می‌کند)،
+  // لیست تاریخچه را از پایگاه‌داده تازه می‌کنیم.
+  useEffect(() => {
+    if (stt.session.accumulatedText) {
+      setHistoryItems(getRecentHistory());
+    }
+  }, [stt.session.accumulatedText]);
 
   // وقتی حباب میکروفون باید فعال باشه و پنلش بسته‌ست، با بک‌گراند رفتن اپ
   // همون حباب به‌صورت حباب سیستمی (روی همه‌ی برنامه‌ها) ظاهر می‌شه.
@@ -86,6 +102,7 @@ export function MainPanel() {
 
       <View style={styles.mainRow}>
         <HistoryPanel
+          items={historyItems}
           selectedItemId={state.selectedHistoryItemId}
           onSelectItem={(id) => dispatch({ type: 'SELECT_HISTORY_ITEM', itemId: id })}
         />
