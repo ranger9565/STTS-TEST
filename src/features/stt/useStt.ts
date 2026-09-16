@@ -2,7 +2,8 @@
  * React hook برای مدیریت کامل STT در UI.
  *
  * وضعیت‌ها و رویدادها از stt-session.ts می‌آیند؛
- * ارتباط با موتور Vosk از طریق vosk-bridge.ts انجام می‌شود.
+ * ارتباط با موتور Vosk از طریق vosk-bridge.ts انجام می‌شود؛
+ * تایپ متن نهایی در فیلد فوکوس‌شده‌ی هر اپ دیگر از طریق typing-module انجام می‌شود.
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
@@ -20,6 +21,10 @@ import {
   destroyVosk,
   VOSK_MODEL_PATH,
 } from './vosk-bridge';
+import {
+  isAccessibilityServiceEnabled,
+  typeText,
+} from '../../../modules/typing-module/src';
 
 export interface UseSttResult {
   session: SttSession;
@@ -31,12 +36,15 @@ export interface UseSttResult {
   /** پاکسازی state بدون توقف ضبط */
   reset: () => void;
   error: Error | null;
+  /** آیا سرویس دسترس‌پذیری (لازم برای تایپ در اپ‌های دیگر) فعال است */
+  isTypingEnabled: boolean;
 }
 
 export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
   const [session, setSession] = useState<SttSession>(createSttSession());
   const [partialText, setPartialText] = useState('');
   const [error, setError] = useState<Error | null>(null);
+  const [isTypingEnabled, setIsTypingEnabled] = useState(false);
   const initializedRef = useRef(false);
 
   useEffect(() => {
@@ -47,6 +55,8 @@ export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
       setError(err instanceof Error ? err : new Error(String(err)));
     });
 
+    setIsTypingEnabled(isAccessibilityServiceEnabled());
+
     return () => {
       destroyVosk().catch(() => {});
     };
@@ -54,6 +64,8 @@ export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
 
   const start = useCallback(async () => {
     setError(null);
+    setIsTypingEnabled(isAccessibilityServiceEnabled());
+
     try {
       setSession((prev) => startListening(prev));
 
@@ -69,6 +81,11 @@ export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
             setSession((prev) =>
               applyPartialResult(prev, { text, isFinal: true }),
             );
+            if (text.trim().length > 0 && isAccessibilityServiceEnabled()) {
+              typeText(text.trim()).catch((err) => {
+                setError(err instanceof Error ? err : new Error(String(err)));
+              });
+            }
           },
           onError: (err) => {
             setError(err);
@@ -104,5 +121,5 @@ export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
     setError(null);
   }, []);
 
-  return { session, partialText, start, stop, reset, error };
+  return { session, partialText, start, stop, reset, error, isTypingEnabled };
 }
