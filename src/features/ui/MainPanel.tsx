@@ -8,6 +8,7 @@ import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
+import { useStt } from '../stt/useStt';
 
 // کل اپ باید راست‌چین باشد؛ این تنظیم یک‌بار در ورودی اپ (App.tsx) هم باید فعال شود
 I18nManager.forceRTL(true);
@@ -21,6 +22,10 @@ const FEATURE_LABELS: Record<'tts' | 'stt' | 'ocr' | 'settings', string> = {
 
 export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
+
+  // اتصال واقعی به موتور Vosk (شروع/توقف ضبط زنده میکروفون)
+  const stt = useStt();
+  const isListening = stt.session.state === 'listening';
 
   // وقتی حباب میکروفون باید فعال باشه و پنلش بسته‌ست، با بک‌گراند رفتن اپ
   // همون حباب به‌صورت حباب سیستمی (روی همه‌ی برنامه‌ها) ظاهر می‌شه.
@@ -46,6 +51,23 @@ export function MainPanel() {
 
     return () => subscription.remove();
   }, []);
+
+  // با بسته‌شدن پنل میکروفون، اگه ضبط در حال انجامه متوقفش کن
+  // (مثلاً کاربر با تپ روی ضربدر پنل رو بست بدون اینکه خودش میکروفون رو خاموش کنه)
+  useEffect(() => {
+    if (!state.micPanelOpen && isListening) {
+      stt.stop().catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state.micPanelOpen]);
+
+  const handleToggleMic = () => {
+    if (isListening) {
+      stt.stop().catch(() => {});
+    } else {
+      stt.start().catch(() => {});
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -85,6 +107,18 @@ export function MainPanel() {
         </View>
       </View>
 
+      {state.activeFeature === 'stt' && !!stt.partialText && (
+        <View style={styles.partialTextBox}>
+          <Text style={styles.partialTextValue}>{stt.partialText}</Text>
+        </View>
+      )}
+
+      {state.activeFeature === 'stt' && !!stt.error && (
+        <View style={styles.partialTextBox}>
+          <Text style={styles.errorTextValue}>{stt.error.message}</Text>
+        </View>
+      )}
+
       <AudioBar selectedHistoryItemId={state.selectedHistoryItemId} />
 
       {state.bubbleVisible && state.activeFeature && !state.micPanelOpen && (
@@ -102,12 +136,10 @@ export function MainPanel() {
 
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
-          isListening={false}
+          isListening={isListening}
           languageLabel="فا"
           onClose={() => dispatch({ type: 'CLOSE_MIC_PANEL' })}
-          onToggleMic={() => {
-            /* اتصال به vosk-bridge در فاز بعد */
-          }}
+          onToggleMic={handleToggleMic}
           onLanguagePress={() => {
             /* باز شدن انتخاب‌گر زبان در فاز بعد */
           }}
@@ -131,4 +163,7 @@ const styles = StyleSheet.create({
   },
   featureButtonActive: { opacity: 0.7 },
   featureLabel: { fontSize: 11, textAlign: 'center' },
+  partialTextBox: { marginHorizontal: 8, marginBottom: 4, padding: 8, borderRadius: 10 },
+  partialTextValue: { fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
+  errorTextValue: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl', color: '#FF6666' },
 });
