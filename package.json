@@ -28,6 +28,7 @@
     "expo-sharing": "~14.0.8",
     "expo-sqlite": "~16.0.10",
     "expo-tesseract": "file:./modules/tesseract-module",
+    "expo-typing": "file:./modules/typing-module",
     "expo-vosk": "file:./modules/vosk-module",
     "onnxruntime-react-native": "^1.19.2",
     "react": "19.1.0",
