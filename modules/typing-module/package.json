@@ -1,0 +1,13 @@
+{
+  "name": "expo-typing",
+  "version": "1.0.0",
+  "description": "Expo module for typing recognized text into any app's focused field via Android AccessibilityService",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}
