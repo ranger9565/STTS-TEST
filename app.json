@@ -30,7 +30,8 @@
       "./modules/vosk-module/expo-plugin",
       "./modules/overlay-module/expo-plugin",
       "./modules/piper-module/expo-plugin",
-      "./modules/tesseract-module/expo-plugin"
+      "./modules/tesseract-module/expo-plugin",
+      "./modules/typing-module/expo-plugin"
     ],
     "scheme": "stts",
     "extra": {
