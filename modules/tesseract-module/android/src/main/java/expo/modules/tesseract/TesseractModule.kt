@@ -66,9 +66,9 @@ class TesseractModule : Module() {
             tess?.recycle()
             tess = null
         }
-    }
 
-    override fun onDestroy() {
-        tess?.recycle()
+        OnDestroy {
+            tess?.recycle()
+        }
     }
 }
