@@ -156,6 +156,13 @@ class VoskModule : Module() {
             model?.close()
             model = null
         }
+
+        OnDestroy {
+            isListening.set(false)
+            recordThread?.join(500)
+            recognizer?.close()
+            model?.close()
+        }
     }
 
     /** استخراج مقدار "partial" از JSON خروجی Vosk */
@@ -170,10 +177,4 @@ class VoskModule : Module() {
             .find(json)?.groupValues?.getOrNull(1) ?: ""
     }
 
-    override fun onDestroy() {
-        isListening.set(false)
-        recordThread?.join(500)
-        recognizer?.close()
-        model?.close()
-    }
 }
