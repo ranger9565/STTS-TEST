@@ -39,6 +39,7 @@ class OverlayModule : Module() {
                 Uri.parse("package:${activity.packageName}"),
             ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             activity.startActivity(intent)
+            null
         }
 
         AsyncFunction("startBubble") { mode: String ->
@@ -53,7 +54,8 @@ class OverlayModule : Module() {
         }
 
         AsyncFunction("stopBubble") {
-            val context = appContext.reactContext ?: return@AsyncFunction null
+            val context = appContext.reactContext ?: return@AsyncFunction
+            null
             OverlayService.stop(context)
         }
     }
