@@ -1,13 +1,16 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'expo-modules-core'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
 
 android {
-  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+  namespace "expo.modules.vosk"
 
   defaultConfig {
     minSdkVersion safeExtGet("minSdkVersion", 24)
-    targetSdkVersion safeExtGet("targetSdkVersion", 34)
   }
 }
 
@@ -17,6 +20,6 @@ repositories {
 
 dependencies {
   implementation project(':expo-modules-core')
-  // Vosk Android SDK — содержит prebuilt .so для arm64-v8a, armeabi-v7a, x86, x86_64
+  // Vosk Android SDK — شامل prebuilt .so برای arm64-v8a, armeabi-v7a, x86, x86_64
   implementation 'com.alphacephei:vosk-android:0.3.47'
 }
