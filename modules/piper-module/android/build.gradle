@@ -1,19 +1,21 @@
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
-apply plugin: 'expo-modules-core'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useDefaultAndroidSdkVersions()
 
 android {
-  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+  namespace "expo.modules.piper"
 
   defaultConfig {
     minSdkVersion safeExtGet("minSdkVersion", 24)
-    targetSdkVersion safeExtGet("targetSdkVersion", 34)
   }
 }
 
 dependencies {
   implementation project(':expo-modules-core')
-  // ONNX Runtime Android — از طریق وابستگی transitiveای onnxruntime-react-native در دسترس است؛
-  // اینجا صریح اضافه می‌شود تا Piper مستقیماً به آن دسترسی داشته باشد.
+  // ONNX Runtime Android — برای اجرای مدل Piper
   implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.19.2'
 }
