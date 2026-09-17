@@ -33,7 +33,7 @@ class OverlayModule : Module() {
         }
 
         Function("requestOverlayPermission") {
-            val activity = appContext.currentActivity ?: return@Function
+            val activity = appContext.currentActivity ?: return@Function null
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:${activity.packageName}"),
@@ -53,7 +53,7 @@ class OverlayModule : Module() {
         }
 
         AsyncFunction("stopBubble") {
-            val context = appContext.reactContext ?: return@AsyncFunction
+            val context = appContext.reactContext ?: return@AsyncFunction null
             OverlayService.stop(context)
         }
     }
