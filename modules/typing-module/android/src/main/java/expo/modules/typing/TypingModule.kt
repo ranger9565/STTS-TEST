@@ -25,7 +25,7 @@ class TypingModule : Module() {
         }
 
         Function("openAccessibilitySettings") {
-            val activity = appContext.currentActivity ?: return@Function
+            val activity = appContext.currentActivity ?: return@Function null
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             activity.startActivity(intent)
