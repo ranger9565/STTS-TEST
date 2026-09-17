@@ -116,6 +116,11 @@ class PiperModule : Module() {
             sessions.clear()
             configs.clear()
         }
+
+        OnDestroy {
+            sessions.values.forEach { it.close() }
+            ortEnv.close()
+        }
     }
 
     /**
@@ -182,8 +187,4 @@ class PiperModule : Module() {
         return bos.toByteArray()
     }
 
-    override fun OnDestroy() {
-        sessions.values.forEach { it.close() }
-        ortEnv.close()
-    }
 }
