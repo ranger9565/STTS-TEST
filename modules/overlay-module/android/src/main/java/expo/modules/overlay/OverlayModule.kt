@@ -54,9 +54,9 @@ class OverlayModule : Module() {
         }
 
         AsyncFunction("stopBubble") {
-            val context = appContext.reactContext ?: return@AsyncFunction
-            null
+            val context = appContext.reactContext ?: return@AsyncFunction null
             OverlayService.stop(context)
+            null
         }
     }
 
