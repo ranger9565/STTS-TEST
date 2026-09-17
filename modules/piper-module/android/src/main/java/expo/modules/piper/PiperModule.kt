@@ -182,7 +182,7 @@ class PiperModule : Module() {
         return bos.toByteArray()
     }
 
-    override fun onDestroy() {
+    override fun OnDestroy() {
         sessions.values.forEach { it.close() }
         ortEnv.close()
     }
