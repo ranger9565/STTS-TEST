@@ -10,10 +10,8 @@
 
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { piperInit, piperSynthesize, piperDestroy } from '../../../modules/piper-module/src';
 import { buildTtsRequests, TtsRequest } from './tts-service';
-import { PlaybackQueue } from './playback-queue';
 import { concatenateWavBuffers } from './wav-concatenator';
 
 export interface PiperBridgeConfig {
@@ -39,7 +37,6 @@ const MODEL_FILES = {
 } as const;
 
 let isInitialized = false;
-const playbackQueue = new PlaybackQueue();
 let currentSound: Audio.Sound | null = null;
 let lastAudioPath: string | null = null;
 
@@ -97,9 +94,7 @@ export async function speak(
 
   // نوشتن فایل WAV موقت
   const outPath = `${FileSystem.cacheDirectory}tts_${Date.now()}.wav`;
-  const base64Combined = btoa(
-    String.fromCharCode(...new Uint8Array(combined)),
-  );
+  const base64Combined = arrayBufferToBase64(combined);
   await FileSystem.writeAsStringAsync(outPath, base64Combined, {
     encoding: FileSystem.EncodingType.Base64,
   });
@@ -129,6 +124,24 @@ export async function exportLastAudio(savePath: string): Promise<void> {
     from: lastAudioPath,
     to: savePath,
   });
+}
+
+/**
+ * تبدیل ArrayBuffer به Base64 بدون spread روی کل بافر.
+ * Spread روی فایل‌های صوتی بزرگ می‌تواند به محدودیت تعداد آرگومان‌های
+ * JavaScript برسد و باعث RangeError/stack overflow شود.
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const CHUNK_SIZE = 0x8000;
+  let binary = '';
+
+  for (let offset = 0; offset < bytes.length; offset += CHUNK_SIZE) {
+    const chunk = bytes.subarray(offset, Math.min(offset + CHUNK_SIZE, bytes.length));
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
 }
 
 /** پخش فایل WAV از مسیر مشخص */
