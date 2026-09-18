@@ -3,8 +3,10 @@ package expo.modules.overlay
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -18,6 +20,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.TextView
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import kotlin.math.abs
 import kotlin.math.hypot
 
@@ -31,7 +34,7 @@ class OverlayService : Service() {
 
     companion object {
         const val EXTRA_MODE = "mode"
-        private const val ACTION_STOP_MODE = "expo.modules.overlay.STOP_MODE"
+        const val ACTION_STOP_MODE = "expo.modules.overlay.STOP_MODE"
         private const val CHANNEL_ID = "stts_overlay_channel"
         private const val NOTIFICATION_ID = 4201
         private const val HOLD_DURATION_MS = 3000L
@@ -54,10 +57,11 @@ class OverlayService : Service() {
                 action = ACTION_STOP_MODE
                 putExtra(EXTRA_MODE, mode)
             }
-            // این فرمان فقط حذف یک حباب موجود است؛ سرویس را از نو به‌صورت
-            // foreground راه نمی‌اندازیم تا روی Android 8+ محدودیت شروع سرویس
-            // پس‌زمینه ایجاد نشود.
-            context.startService(intent)
+            // توقف یک mode نباید سرویس را دوباره از پس‌زمینه start کند.
+            // Broadcast به receiver داخلی سرویس ارسال می‌شود؛ تا وقتی سرویس
+            // حباب‌های دیگری دارد، همان instance باقی می‌ماند.
+            intent.setPackage(context.packageName)
+            context.sendBroadcast(intent)
         }
     }
 
@@ -78,6 +82,13 @@ class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private val bubbles = mutableMapOf<String, BubbleState>()
     private val handler = Handler(Looper.getMainLooper())
+    private val stopModeReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_STOP_MODE) return
+            val mode = intent.getStringExtra(EXTRA_MODE) ?: return
+            removeBubble(normalizeMode(mode))
+        }
+    }
 
     private var bubbleSizePx = 0
     private var closeTargetSizePx = 0
@@ -87,22 +98,31 @@ class OverlayService : Service() {
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        ContextCompat.registerReceiver(
+            this,
+            stopModeReceiver,
+            IntentFilter(ACTION_STOP_MODE),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
         bubbleSizePx = dpToPx(56)
         closeTargetSizePx = dpToPx(72)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val mode = normalizeMode(intent?.getStringExtra(EXTRA_MODE))
-
         if (intent?.action == ACTION_STOP_MODE) {
-            removeBubble(mode)
+            val requestedMode = intent.getStringExtra(EXTRA_MODE) ?: return START_NOT_STICKY
+            removeBubble(normalizeMode(requestedMode))
             if (bubbles.isEmpty()) stopSelfResult(startId)
             return START_NOT_STICKY
         }
 
+        val requestedMode = intent?.getStringExtra(EXTRA_MODE) ?: return START_NOT_STICKY
+        val mode = normalizeMode(requestedMode)
+        if (mode != requestedMode) return START_NOT_STICKY
+
         startForegroundWithNotification()
         showBubble(mode)
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun normalizeMode(mode: String?): String {
@@ -383,6 +403,11 @@ class OverlayService : Service() {
             }
         }
         bubbles.clear()
+        try {
+            unregisterReceiver(stopModeReceiver)
+        } catch (_: IllegalArgumentException) {
+            // receiver از قبل unregister شده است.
+        }
         super.onDestroy()
     }
 }
