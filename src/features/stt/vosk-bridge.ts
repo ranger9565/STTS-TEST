@@ -7,7 +7,7 @@
  *   ۳. رویدادهای نتیجه جزئی/نهایی/خطا را از native گوش می‌دهد و به لایه بالا (callback) می‌دهد
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import {
   voskInit,
   voskStart,
