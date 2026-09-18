@@ -86,7 +86,7 @@ class OverlayService : Service() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ACTION_STOP_MODE) return
             val mode = intent.getStringExtra(EXTRA_MODE) ?: return
-            removeBubble(normalizeMode(mode))
+            normalizeMode(mode)?.let(::removeBubble)
         }
     }
 
@@ -111,24 +111,23 @@ class OverlayService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP_MODE) {
             val requestedMode = intent.getStringExtra(EXTRA_MODE) ?: return START_NOT_STICKY
-            removeBubble(normalizeMode(requestedMode))
+            normalizeMode(requestedMode)?.let(::removeBubble)
             if (bubbles.isEmpty()) stopSelfResult(startId)
             return START_NOT_STICKY
         }
 
         val requestedMode = intent?.getStringExtra(EXTRA_MODE) ?: return START_NOT_STICKY
-        val mode = normalizeMode(requestedMode)
-        if (mode != requestedMode) return START_NOT_STICKY
+        val mode = normalizeMode(requestedMode) ?: return START_NOT_STICKY
 
         startForegroundWithNotification()
         showBubble(mode)
         return START_NOT_STICKY
     }
 
-    private fun normalizeMode(mode: String?): String {
+    private fun normalizeMode(mode: String?): String? {
         return when (mode) {
-            "tts", "ocr" -> mode
-            else -> "stt"
+            "stt", "tts", "ocr" -> mode
+            else -> null
         }
     }
 
