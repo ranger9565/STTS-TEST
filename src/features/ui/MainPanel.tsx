@@ -46,37 +46,32 @@ export function MainPanel() {
 
   // وقتی حباب میکروفون باید فعال باشه و پنلش بسته‌ست، با بک‌گراند رفتن اپ
   // همون حباب به‌صورت حباب سیستمی (روی همه‌ی برنامه‌ها) ظاهر می‌شه.
-  useOverlayBubble(
-    state.bubbleVisible && state.activeFeature === 'stt' && !state.micPanelOpen,
-  );
+  useOverlayBubble(state.bubbles.stt && !state.micPanelOpen);
 
   // تپ روی حباب سیستمی، اپ رو با دیپ‌لینک stts://openMic باز می‌کنه؛
   // اینجا همون رویداد رو می‌گیریم و مستقیم پنل میکروفون رو باز می‌کنیم.
   useEffect(() => {
-    const openMicPanelFromUrl = (url: string | null) => {
+    const openFeatureFromUrl = (url: string | null) => {
       if (!url) return;
       const { hostname, path } = Linking.parse(url);
-      if (hostname === 'openMic' || path === 'openMic') {
+      const route = hostname || path;
+
+      if (route === 'openMic') {
         dispatch({ type: 'OPEN_MIC_PANEL_DIRECT' });
+      } else if (route === 'openTts') {
+        dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
+      } else if (route === 'openOcr') {
+        dispatch({ type: 'SELECT_FEATURE', feature: 'ocr' });
       }
     };
 
-    Linking.getInitialURL().then(openMicPanelFromUrl);
+    Linking.getInitialURL().then(openFeatureFromUrl);
     const subscription = Linking.addEventListener('url', (event) => {
-      openMicPanelFromUrl(event.url);
+      openFeatureFromUrl(event.url);
     });
 
     return () => subscription.remove();
   }, []);
-
-  // با بسته‌شدن پنل میکروفون، اگه ضبط در حال انجامه متوقفش کن
-  // (مثلاً کاربر با تپ روی ضربدر پنل رو بست بدون اینکه خودش میکروفون رو خاموش کنه)
-  useEffect(() => {
-    if (!state.micPanelOpen && isListening) {
-      stt.stop().catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.micPanelOpen]);
 
   const handleToggleMic = () => {
     if (isListening) {
@@ -113,7 +108,12 @@ export function MainPanel() {
               key={feature}
               accessibilityRole="button"
               accessibilityLabel={FEATURE_LABELS[feature]}
-              onPress={() => dispatch({ type: 'SELECT_FEATURE', feature })}
+              onPress={() => {
+                dispatch({ type: 'SELECT_FEATURE', feature });
+                if (feature !== 'settings') {
+                  dispatch({ type: 'TOGGLE_BUBBLE', mode: feature });
+                }
+              }}
               style={[
                 styles.featureButton,
                 state.activeFeature === feature && styles.featureButtonActive,
@@ -147,24 +147,33 @@ export function MainPanel() {
 
       <AudioBar selectedHistoryItemId={state.selectedHistoryItemId} />
 
-      {state.bubbleVisible && state.activeFeature && !state.micPanelOpen && (
-        <FloatingBubble
-          mode={state.activeFeature === 'ocr' ? 'ocr' : 'stt'}
-          onTap={() => {
-            // TODO(فاز بعد): پنل اسکن گوگل‌لنزی برای mode==='ocr'
-            if (state.activeFeature === 'stt') {
-              dispatch({ type: 'OPEN_MIC_PANEL' });
-            }
-          }}
-          onClose={() => dispatch({ type: 'HIDE_BUBBLE' })}
-        />
+      {(Object.keys(state.bubbles) as Array<'tts' | 'stt' | 'ocr'>).map((mode) =>
+        state.bubbles[mode] && !(mode === 'stt' && state.micPanelOpen) ? (
+          <FloatingBubble
+            key={mode}
+            mode={mode}
+            initialX={16 + (mode === 'tts' ? 64 : mode === 'ocr' ? 128 : 0)}
+            onTap={() => {
+              dispatch({ type: 'SELECT_FEATURE', feature: mode });
+              if (mode === 'stt') {
+                dispatch({ type: 'OPEN_MIC_PANEL' });
+              }
+            }}
+            onClose={() => dispatch({ type: 'HIDE_BUBBLE', mode })}
+          />
+        ) : null,
       )}
 
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
           isListening={isListening}
           languageLabel="فا"
-          onClose={() => dispatch({ type: 'CLOSE_MIC_PANEL' })}
+          onClose={() => {
+            if (isListening) {
+              stt.stop().catch(() => {});
+            }
+            dispatch({ type: 'CLOSE_MIC_PANEL' });
+          }}
           onToggleMic={handleToggleMic}
           onLanguagePress={() => {
             /* باز شدن انتخاب‌گر زبان در فاز بعد */
