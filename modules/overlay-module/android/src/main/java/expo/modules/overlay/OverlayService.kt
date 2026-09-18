@@ -35,21 +35,34 @@ class OverlayService : Service() {
     companion object {
         const val EXTRA_MODE = "mode"
         const val ACTION_STOP_MODE = "expo.modules.overlay.STOP_MODE"
+        const val ACTION_SET_VISIBILITY = "expo.modules.overlay.SET_VISIBILITY"
+        const val EXTRA_VISIBLE = "visible"
         private const val CHANNEL_ID = "stts_overlay_channel"
         private const val NOTIFICATION_ID = 4201
         private const val HOLD_DURATION_MS = 3000L
         private const val MOVE_THRESHOLD_PX = 24
         private const val CLOSE_TRIGGER_DISTANCE_PX = 160
 
-        fun start(context: Context, mode: String) {
+        fun start(context: Context, mode: String, visible: Boolean) {
             val intent = Intent(context, OverlayService::class.java).apply {
                 putExtra(EXTRA_MODE, mode)
+                putExtra(EXTRA_VISIBLE, visible)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
             } else {
                 context.startService(intent)
             }
+        }
+
+        fun setVisibility(context: Context, mode: String, visible: Boolean) {
+            val intent = Intent(context, OverlayService::class.java).apply {
+                action = ACTION_SET_VISIBILITY
+                putExtra(EXTRA_MODE, mode)
+                putExtra(EXTRA_VISIBLE, visible)
+            }
+            intent.setPackage(context.packageName)
+            context.sendBroadcast(intent)
         }
 
         fun stop(context: Context, mode: String) {
@@ -134,7 +147,11 @@ class OverlayService : Service() {
         val mode = normalizeMode(requestedMode) ?: return START_NOT_STICKY
 
         startForegroundWithNotification()
-        showBubble(mode)
+        if (intent.getBooleanExtra(EXTRA_VISIBLE, true)) {
+            showBubble(mode)
+        } else {
+            hideBubble(mode)
+        }
         return START_NOT_STICKY
     }
 
@@ -340,87 +357,11 @@ class OverlayService : Service() {
         state.closeTargetView = target
     }
 
-    private fun hideCloseTarget(state: BubbleState) {
-        state.closeTargetView?.let { view ->
-            try {
-                windowManager.removeView(view)
-            } catch (_: IllegalArgumentException) {
-                // view از قبل حذف شده است.
-            }
-        }
-        state.closeTargetView = null
-        state.closeTargetVisible = false
-    }
-
-    private fun isOverCloseTarget(bubbleParams: WindowManager.LayoutParams): Boolean {
-        val (targetCenterX, targetCenterY) = closeTargetCenter()
-        val bubbleCenterX = bubbleParams.x + bubbleSizePx / 2
-        val bubbleCenterY = bubbleParams.y + bubbleSizePx / 2
-        val dist = hypot(
-            (bubbleCenterX - targetCenterX).toDouble(),
-            (bubbleCenterY - targetCenterY).toDouble(),
-        )
-        return dist < CLOSE_TRIGGER_DISTANCE_PX
-    }
-
-    private fun updateCloseTargetHover(state: BubbleState) {
-        val target = state.closeTargetView as? TextView ?: return
-        val over = isOverCloseTarget(state.params)
-        target.background = circleDrawable(
-            if (over) 0xFFD9453C.toInt() else 0xFF33363C.toInt(),
-        )
-    }
-
-    private fun onBubbleTapped(mode: String) {
-        val path = when (mode) {
-            "tts" -> "openTts"
-            "ocr" -> "openOcr"
-            else -> "openMic"
-        }
-        val uri = android.net.Uri.parse("stts://$path")
-        val intent = Intent(Intent.ACTION_VIEW, uri).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-        }
-        startActivity(intent)
-    }
-
-    private fun removeBubble(mode: String) {
-        val state = bubbles.remove(mode) ?: return
+    private fun hideBubble(mode: String) {
+        val state = bubbles[mode] ?: return
         cancelHoldTimer(state)
         hideCloseTarget(state)
-
-        try {
-            windowManager.removeView(state.view)
-        } catch (_: IllegalArgumentException) {
-            // view از قبل حذف شده است.
-        }
-
-        if (bubbles.isEmpty()) {
-            stopSelf()
-        }
+        state.view.visibility = View.GONE
     }
 
-    private fun dpToPx(dp: Int): Int {
-        val density = resources.displayMetrics.density
-        return (dp * density).toInt()
-    }
 
-    override fun onDestroy() {
-        bubbles.values.toList().forEach { state ->
-            cancelHoldTimer(state)
-            hideCloseTarget(state)
-            try {
-                windowManager.removeView(state.view)
-            } catch (_: IllegalArgumentException) {
-                // view از قبل حذف شده است.
-            }
-        }
-        bubbles.clear()
-        try {
-            unregisterReceiver(stopModeReceiver)
-        } catch (_: IllegalArgumentException) {
-            // receiver از قبل unregister شده است.
-        }
-        super.onDestroy()
-    }
-}
