@@ -7,7 +7,8 @@ import { requireNativeModule } from 'expo-modules-core';
 interface OverlayNativeModule {
   hasOverlayPermission(): boolean;
   requestOverlayPermission(): void;
-  startBubble(mode: OverlayBubbleMode): Promise<void>;
+  startBubble(mode: OverlayBubbleMode, visible: boolean): Promise<void>;
+  setBubbleVisibility(mode: OverlayBubbleMode, visible: boolean): Promise<void>;
   stopBubble(mode: OverlayBubbleMode): Promise<void>;
 }
 
@@ -23,8 +24,12 @@ export function requestOverlayPermission(): void {
   OverlayNative.requestOverlayPermission();
 }
 
-export function startOverlayBubble(mode: OverlayBubbleMode): Promise<void> {
-  return OverlayNative.startBubble(mode);
+export function startOverlayBubble(mode: OverlayBubbleMode, visible = true): Promise<void> {
+  return OverlayNative.startBubble(mode, visible);
+}
+
+export function setOverlayBubbleVisibility(mode: OverlayBubbleMode, visible: boolean): Promise<void> {
+  return OverlayNative.setBubbleVisibility(mode, visible);
 }
 
 export function stopOverlayBubble(mode: OverlayBubbleMode): Promise<void> {
