@@ -47,13 +47,35 @@ let lastAudioPath: string | null = null;
 export async function initPiper(config: PiperBridgeConfig): Promise<void> {
   if (isInitialized) return;
 
-  for (const [, files] of Object.entries(MODEL_FILES)) {
-    const modelPath = `${config.modelsDir}/${files.model}`;
-    const configPath = `${config.modelsDir}/${files.config}`;
-    await piperInit(modelPath, configPath, config.espeakDataDir);
+  const requiredPaths = Object.values(MODEL_FILES).flatMap((files) => [
+    `${config.modelsDir}/${files.model}`,
+    `${config.modelsDir}/${files.config}`,
+  ]);
+
+  requiredPaths.push(config.espeakDataDir);
+
+  for (const path of requiredPaths) {
+    const info = await FileSystem.getInfoAsync(path);
+    if (!info.exists) {
+      throw new Error(`Piper asset not found: ${path}`);
+    }
   }
 
-  isInitialized = true;
+  try {
+    for (const [, files] of Object.entries(MODEL_FILES)) {
+      const modelPath = `${config.modelsDir}/${files.model}`;
+      const configPath = `${config.modelsDir}/${files.config}`;
+      await piperInit(modelPath, configPath, config.espeakDataDir);
+    }
+
+    isInitialized = true;
+  } catch (error) {
+    // اگر مقداردهی یکی از مدل‌ها شکست خورد، session مدل قبلی نباید
+    // به‌صورت نیمه‌کاره در حافظه باقی بماند.
+    await piperDestroy().catch(() => {});
+    isInitialized = false;
+    throw error;
+  }
 }
 
 /**
