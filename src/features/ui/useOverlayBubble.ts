@@ -86,8 +86,6 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
       }
     });
 
-    reconcile();
-
     return () => {
       subscription.remove();
       Array.from(startedModesRef.current).forEach((mode) => void stopMode(mode));
