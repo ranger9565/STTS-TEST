@@ -36,7 +36,10 @@ export function MainPanel() {
     if (stt.session.accumulatedText) setHistoryItems(getRecentHistory());
   }, [stt.session.accumulatedText]);
 
-  useOverlayBubble(state.bubbles.stt && !state.micPanelOpen);
+  useOverlayBubble({
+    ...state.bubbles,
+    stt: state.bubbles.stt && !state.micPanelOpen,
+  });
 
   useEffect(() => {
     const openFeatureFromUrl = (url: string | null) => {
