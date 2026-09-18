@@ -1,14 +1,23 @@
 /**
- * مدیریت وضعیت پنل اصلی اپ: کدام فیچر فعاله، حباب شناور نمایش داده می‌شه یا نه،
- * و کدوم آیتم تاریخچه الان انتخاب/درحال‌پخش هست.
- * این منطق از UI جدا نگه داشته می‌شود تا بدون رندر واقعی React Native قابل تست باشد.
+ * مدیریت وضعیت پنل اصلی اپ.
+ *
+ * نکته‌ی معماری مهم:
+ * activeFeature فقط مشخص می‌کند کدام پنل/بخش در foreground فعال است؛
+ * مالکیت حباب‌ها از آن جداست تا STT و TTS (یا OCR) بتوانند هم‌زمان فعال بمانند.
  */
 
 export type ActiveFeature = 'tts' | 'stt' | 'ocr' | 'settings' | null;
+export type BubbleMode = 'tts' | 'stt' | 'ocr';
+
+export interface BubbleState {
+  tts: boolean;
+  stt: boolean;
+  ocr: boolean;
+}
 
 export interface PanelState {
   activeFeature: ActiveFeature;
-  bubbleVisible: boolean;
+  bubbles: BubbleState;
   selectedHistoryItemId: string | null;
   /** پنل مستطیلی میکروفون (X/میکروفون/پرچم) با تپ روی حباب باز می‌شود */
   micPanelOpen: boolean;
@@ -16,8 +25,8 @@ export interface PanelState {
 
 export type PanelAction =
   | { type: 'SELECT_FEATURE'; feature: ActiveFeature }
-  | { type: 'TOGGLE_BUBBLE' }
-  | { type: 'HIDE_BUBBLE' }
+  | { type: 'TOGGLE_BUBBLE'; mode: BubbleMode }
+  | { type: 'HIDE_BUBBLE'; mode: BubbleMode }
   | { type: 'SELECT_HISTORY_ITEM'; itemId: string | null }
   | { type: 'OPEN_MIC_PANEL' }
   | { type: 'CLOSE_MIC_PANEL' }
@@ -25,46 +34,54 @@ export type PanelAction =
 
 export const initialPanelState: PanelState = {
   activeFeature: null,
-  bubbleVisible: false,
+  bubbles: { tts: false, stt: false, ocr: false },
   selectedHistoryItemId: null,
   micPanelOpen: false,
 };
 
-/**
- * انتخاب فیچر صوت‌به‌متن یا اسکنر، حباب شناور را toggle می‌کند (چون هر دو حباب‌محورند).
- * انتخاب متن‌به‌صوت یا تنظیمات، حباب را نمایش نمی‌دهد (بدون حباب طبق مشخصات).
- */
 export function panelReducer(state: PanelState, action: PanelAction): PanelState {
   switch (action.type) {
-    case 'SELECT_FEATURE': {
-      const bubbleFeatures: ActiveFeature[] = ['stt', 'ocr'];
-      const shouldToggleBubble = bubbleFeatures.includes(action.feature);
-
+    case 'SELECT_FEATURE':
       return {
         ...state,
         activeFeature: action.feature,
-        // وقتی از STT/OCR به TTS یا Settings می‌رویم، حباب قبلی نباید
-        // با mode اشتباه روی صفحه باقی بماند.
-        bubbleVisible: shouldToggleBubble
-          ? !(state.activeFeature === action.feature && state.bubbleVisible)
-          : false,
+        // تغییر پنل نباید حباب‌های مستقل دیگر را خاموش کند.
         micPanelOpen: action.feature === 'stt' ? state.micPanelOpen : false,
       };
-    }
+
     case 'TOGGLE_BUBBLE':
-      return { ...state, bubbleVisible: !state.bubbleVisible };
+      return {
+        ...state,
+        bubbles: {
+          ...state.bubbles,
+          [action.mode]: !state.bubbles[action.mode],
+        },
+      };
+
     case 'HIDE_BUBBLE':
-      return { ...state, bubbleVisible: false, micPanelOpen: false };
+      return {
+        ...state,
+        bubbles: { ...state.bubbles, [action.mode]: false },
+        ...(action.mode === 'stt' ? { micPanelOpen: false } : {}),
+      };
+
     case 'SELECT_HISTORY_ITEM':
       return { ...state, selectedHistoryItemId: action.itemId };
+
     case 'OPEN_MIC_PANEL':
-      return { ...state, micPanelOpen: true };
+      return { ...state, activeFeature: 'stt', micPanelOpen: true };
+
     case 'CLOSE_MIC_PANEL':
       return { ...state, micPanelOpen: false };
+
     case 'OPEN_MIC_PANEL_DIRECT':
-      // برای زمانی که کاربر از طریق حباب سیستمی (خارج از اپ) دیپ‌لینک می‌زنه؛
-      // یک اکشن اتمیک تا با منطق toggle موجود در SELECT_FEATURE تداخل نکنه.
-      return { ...state, activeFeature: 'stt', bubbleVisible: true, micPanelOpen: true };
+      return {
+        ...state,
+        activeFeature: 'stt',
+        bubbles: { ...state.bubbles, stt: true },
+        micPanelOpen: true,
+      };
+
     default:
       return state;
   }
