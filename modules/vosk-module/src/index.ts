@@ -4,10 +4,7 @@
  * ضبط زنده میکروفون کاملاً native انجام می‌شود (AudioRecord)؛
  * نتایج جزئی/نهایی از طریق رویداد به JS می‌رسند.
  */
-import { NativeModulesProxy, EventEmitter, Subscription } from 'expo-modules-core';
-
-const VoskNative = NativeModulesProxy.VoskModule;
-const voskEmitter = new EventEmitter(VoskNative);
+import { requireNativeModule, EventSubscription } from 'expo-modules-core';
 
 export interface VoskPartialResult {
   partial: string;
@@ -21,56 +18,62 @@ export interface VoskErrorResult {
   error: string;
 }
 
-/** مقداردهی اولیه موتور Vosk با مسیر مدل
- *  @param modelPath مسیر مطلق پوشه مدل (مثلاً: /data/data/…/files/vosk-model-small-fa-0.42)
- */
+interface VoskNativeModule {
+  init(modelPath: string): Promise<void>;
+  start(sampleRate: number): Promise<void>;
+  feedAudio(samplesBase64: string): Promise<VoskPartialResult | null>;
+  stop(): Promise<VoskFinalResult>;
+  destroy(): Promise<void>;
+  addListener(
+    eventName: 'onPartialResult',
+    listener: (event: VoskPartialResult) => void,
+  ): EventSubscription;
+  addListener(
+    eventName: 'onFinalResult',
+    listener: (event: VoskFinalResult) => void,
+  ): EventSubscription;
+  addListener(
+    eventName: 'onError',
+    listener: (event: VoskErrorResult) => void,
+  ): EventSubscription;
+}
+
+const VoskNative = requireNativeModule<VoskNativeModule>('VoskModule');
+
 export async function voskInit(modelPath: string): Promise<void> {
   return VoskNative.init(modelPath);
 }
 
-/**
- * شروع ضبط زنده میکروفون + تشخیص گفتار — کاملاً در سمت native.
- * نتایج از طریق addPartialResultListener / addFinalResultListener دریافت می‌شوند.
- */
 export async function voskStart(sampleRate: number = 16000): Promise<void> {
   return VoskNative.start(sampleRate);
 }
 
-/**
- * ارسال دستی بلوک صوتی PCM 16-bit (برای مسیرهای غیر زنده، مثل transcribeFile آینده).
- * samplesBase64 باید base64-encoded bytes باشد.
- */
 export async function voskFeedAudio(samplesBase64: string): Promise<VoskPartialResult | null> {
   return VoskNative.feedAudio(samplesBase64);
 }
 
-/** توقف ضبط زنده و دریافت نتیجه نهایی */
 export async function voskStop(): Promise<VoskFinalResult> {
   return VoskNative.stop();
 }
 
-/** آزادسازی منابع موتور Vosk */
 export async function voskDestroy(): Promise<void> {
   return VoskNative.destroy();
 }
 
-/** ثبت شنونده برای نتیجه جزئی (حین صحبت کردن) */
 export function addPartialResultListener(
   listener: (event: VoskPartialResult) => void,
-): Subscription {
-  return voskEmitter.addListener<VoskPartialResult>('onPartialResult', listener);
+): EventSubscription {
+  return VoskNative.addListener('onPartialResult', listener);
 }
 
-/** ثبت شنونده برای نتیجه نهایی هر بخش گفتار */
 export function addFinalResultListener(
   listener: (event: VoskFinalResult) => void,
-): Subscription {
-  return voskEmitter.addListener<VoskFinalResult>('onFinalResult', listener);
+): EventSubscription {
+  return VoskNative.addListener('onFinalResult', listener);
 }
 
-/** ثبت شنونده برای خطاهای حین ضبط زنده میکروفون */
 export function addErrorListener(
   listener: (event: VoskErrorResult) => void,
-): Subscription {
-  return voskEmitter.addListener<VoskErrorResult>('onError', listener);
+): EventSubscription {
+  return VoskNative.addListener('onError', listener);
 }
