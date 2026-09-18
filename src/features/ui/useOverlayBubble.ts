@@ -5,22 +5,29 @@ import {
   requestOverlayPermission,
   startOverlayBubble,
   stopOverlayBubble,
+  type OverlayBubbleMode,
 } from '../../../modules/overlay-module/src';
 
+interface BubbleVisibility {
+  stt: boolean;
+  tts: boolean;
+  ocr: boolean;
+}
+
 /**
- * فقط حباب STT در خارج از اپ به‌صورت system overlay اجرا می‌شود.
+ * مالک lifecycle حباب‌های system overlay.
  *
- * این hook عمداً مالکیت سایر حباب‌ها را لمس نمی‌کند. بنابراین بازشدن TTS/OCR
- * نباید باعث خاموش‌شدن حباب STT شود و بعداً می‌توان هر mode را مستقل به
- * system overlay منتقل کرد.
+ * هر mode مستقل مدیریت می‌شود؛ بنابراین رفتن TTS به overlay یا توقف OCR
+ * نباید حباب STT را خاموش کند. حباب‌ها فقط هنگام background شدن اپ به
+ * system overlay منتقل می‌شوند و با برگشت اپ به foreground حذف می‌شوند.
  */
-export function useOverlayBubble(shouldShowMicBubble: boolean): void {
+export function useOverlayBubble(bubbles: BubbleVisibility): void {
   const appState = useRef<AppStateStatus>(AppState.currentState);
-  const overlayStartedRef = useRef(false);
+  const startedModesRef = useRef<Set<OverlayBubbleMode>>(new Set());
 
   useEffect(() => {
-    const startMicOverlay = async () => {
-      if (overlayStartedRef.current) return;
+    const startMode = async (mode: OverlayBubbleMode) => {
+      if (startedModesRef.current.has(mode)) return;
 
       if (!hasOverlayPermission()) {
         requestOverlayPermission();
@@ -28,20 +35,33 @@ export function useOverlayBubble(shouldShowMicBubble: boolean): void {
       }
 
       try {
-        await startOverlayBubble('stt');
-        overlayStartedRef.current = true;
+        await startOverlayBubble(mode);
+        startedModesRef.current.add(mode);
       } catch {
-        // در صورت خطای مجوز/سرویس، تلاش بعدی با تغییر وضعیت انجام می‌شود.
+        // با تغییر بعدی lifecycle دوباره تلاش می‌شود.
       }
     };
 
-    const stopMicOverlay = async () => {
-      if (!overlayStartedRef.current) return;
+    const stopMode = async (mode: OverlayBubbleMode) => {
+      if (!startedModesRef.current.has(mode)) return;
+
       try {
-        await stopOverlayBubble('stt');
+        await stopOverlayBubble(mode);
       } finally {
-        overlayStartedRef.current = false;
+        startedModesRef.current.delete(mode);
       }
+    };
+
+    const startAllRequested = () => {
+      (Object.keys(bubbles) as OverlayBubbleMode[]).forEach((mode) => {
+        if (bubbles[mode]) void startMode(mode);
+      });
+    };
+
+    const stopAllStarted = () => {
+      Array.from(startedModesRef.current).forEach((mode) => {
+        void stopMode(mode);
+      });
     };
 
     const subscription = AppState.addEventListener('change', (next: AppStateStatus) => {
@@ -53,19 +73,50 @@ export function useOverlayBubble(shouldShowMicBubble: boolean): void {
 
       appState.current = next;
 
-      if (!shouldShowMicBubble) return;
-
       if (wasActive && isNowBackground) {
-        startMicOverlay();
+        startAllRequested();
       } else if (wasBackground && isNowActive) {
-        stopMicOverlay();
+        stopAllStarted();
       }
     });
 
-    if (!shouldShowMicBubble) {
-      stopMicOverlay();
+    if (appState.current === 'background' || appState.current === 'inactive') {
+      startAllRequested();
+    } else {
+      // اگر یک mode در foreground خاموش شده باشد، overlay قبلی همان mode را
+      // نیز تمیز می‌کنیم؛ modeهای دیگر دست‌نخورده می‌مانند.
+      Array.from(startedModesRef.current).forEach((mode) => {
+        if (!bubbles[mode]) void stopMode(mode);
+      });
     }
 
-    return () => subscription.remove();
-  }, [shouldShowMicBubble]);
+    return () => {
+      subscription.remove();
+      stopAllStarted();
+    };
+  }, [bubbles]);
+
+  useEffect(() => {
+    if (appState.current !== 'background' && appState.current !== 'inactive') return;
+
+    const requestedModes = new Set(
+      (Object.keys(bubbles) as OverlayBubbleMode[]).filter((mode) => bubbles[mode]),
+    );
+
+    Array.from(startedModesRef.current).forEach((mode) => {
+      if (!requestedModes.has(mode)) {
+        void stopOverlayBubble(mode);
+        startedModesRef.current.delete(mode);
+      }
+    });
+
+    requestedModes.forEach((mode) => {
+      if (hasOverlayPermission()) {
+        void startOverlayBubble(mode).then(
+          () => startedModesRef.current.add(mode),
+          () => {},
+        );
+      }
+    });
+  }, [bubbles]);
 }
