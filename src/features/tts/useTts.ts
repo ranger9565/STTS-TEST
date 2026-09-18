@@ -1,9 +1,3 @@
-/**
- * React hook برای مدیریت TTS در UI.
- *
- * مدل‌های Piper مقداردهی می‌شوند و وضعیت synthesis/playback
- * برای کنترل‌های UI برگردانده می‌شود.
- */
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   initPiper,
@@ -30,18 +24,23 @@ export function useTts(
   const [status, setStatus] = useState<TtsStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
   const initializedRef = useRef(false);
+  const initPromiseRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     if (initializedRef.current) return;
     initializedRef.current = true;
 
-    initPiper({ modelsDir, espeakDataDir }).catch((err) => {
+    const promise = initPiper({ modelsDir, espeakDataDir });
+    initPromiseRef.current = promise;
+
+    promise.catch((err) => {
       setError(err instanceof Error ? err : new Error(String(err)));
       setStatus('error');
     });
 
     return () => {
       destroyPiper().catch(() => {});
+      initPromiseRef.current = null;
     };
   }, [modelsDir, espeakDataDir]);
 
@@ -56,18 +55,15 @@ export function useTts(
     setError(null);
 
     try {
+      if (initPromiseRef.current) {
+        await initPromiseRef.current;
+      }
       if (status === 'playing' || status === 'synthesizing') {
         await stopSpeaking();
       }
 
       setStatus('synthesizing');
-
-      await speak(text, () => {
-        setStatus('idle');
-      });
-
-      // speak() resolves when playback has started.
-      // The callback above changes it back to idle when playback finishes.
+      await speak(text, () => setStatus('idle'));
       setStatus('playing');
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
