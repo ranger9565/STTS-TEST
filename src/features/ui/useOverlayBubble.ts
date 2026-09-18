@@ -4,6 +4,7 @@ import {
   hasOverlayPermission,
   requestOverlayPermission,
   startOverlayBubble,
+  setOverlayBubbleVisibility,
   stopOverlayBubble,
   type OverlayBubbleMode,
 } from '../../../modules/overlay-module/src';
@@ -52,7 +53,7 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
 
       pendingStartRef.current.add(mode);
       try {
-        await startOverlayBubble(mode);
+        await startOverlayBubble(mode, appState.current === 'background' || appState.current === 'inactive');
         startedModesRef.current.add(mode);
       } catch {
         // تلاش بعدی با تغییر lifecycle یا وضعیت حباب انجام می‌شود.
@@ -83,16 +84,18 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
       const isBackground =
         appState.current === 'background' || appState.current === 'inactive';
 
-      if (!isBackground) {
-        Array.from(startedModesRef.current).forEach((mode) => {
-          if (!requested[mode]) void stopMode(mode);
-        });
-        return;
-      }
-
       (Object.keys(requested) as OverlayBubbleMode[]).forEach((mode) => {
-        if (requested[mode]) void startMode(mode);
-        else void stopMode(mode);
+        if (requested[mode]) {
+          void startMode(mode);
+        } else {
+          void stopMode(mode);
+        }
+      });
+
+      Array.from(startedModesRef.current).forEach((mode) => {
+        if (requested[mode]) {
+          void setOverlayBubbleVisibility(mode, isBackground);
+        }
       });
     };
 
@@ -116,8 +119,9 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
         } else if (wasBackground && isNowActive) {
           permissionRequestedRef.current = false;
           Array.from(startedModesRef.current).forEach((mode) =>
-            void stopMode(mode),
+            void setOverlayBubbleVisibility(mode, false),
           );
+          reconcile();
         }
       },
     );
