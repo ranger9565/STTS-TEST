@@ -9,10 +9,10 @@ import { AudioBar } from './AudioBar';
 import { HistoryPanel, HistoryItem } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
 import { useStt } from '../stt/useStt';
+import { useTts } from '../tts/useTts';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
 import { initHistoryDb, getRecentHistory } from '../../shared/services/history-store';
 
-// کل اپ باید راست‌چین باشد؛ این تنظیم یک‌بار در ورودی اپ (App.tsx) هم باید فعال شود
 I18nManager.forceRTL(true);
 
 const FEATURE_LABELS: Record<'tts' | 'stt' | 'ocr' | 'settings', string> = {
@@ -26,30 +26,23 @@ export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
 
-  // اتصال واقعی به موتور Vosk (شروع/توقف ضبط زنده میکروفون)
   const stt = useStt();
+  const tts = useTts();
   const isListening = stt.session.state === 'listening';
 
-  // مقداردهی اولیه‌ی پایگاه‌داده‌ی تاریخچه و بارگذاری موارد موجود
   useEffect(() => {
     initHistoryDb();
     setHistoryItems(getRecentHistory());
   }, []);
 
-  // هر بار که یک جمله‌ی نهایی STT ذخیره می‌شود (accumulatedText تغییر می‌کند)،
-  // لیست تاریخچه را از پایگاه‌داده تازه می‌کنیم.
   useEffect(() => {
     if (stt.session.accumulatedText) {
       setHistoryItems(getRecentHistory());
     }
   }, [stt.session.accumulatedText]);
 
-  // وقتی حباب میکروفون باید فعال باشه و پنلش بسته‌ست، با بک‌گراند رفتن اپ
-  // همون حباب به‌صورت حباب سیستمی (روی همه‌ی برنامه‌ها) ظاهر می‌شه.
   useOverlayBubble(state.bubbles.stt && !state.micPanelOpen);
 
-  // تپ روی حباب سیستمی، اپ رو با دیپ‌لینک stts://openMic باز می‌کنه؛
-  // اینجا همون رویداد رو می‌گیریم و مستقیم پنل میکروفون رو باز می‌کنیم.
   useEffect(() => {
     const openFeatureFromUrl = (url: string | null) => {
       if (!url) return;
@@ -73,12 +66,21 @@ export function MainPanel() {
     return () => subscription.remove();
   }, []);
 
+  const selectedHistoryItem = historyItems.find(
+    (item) => item.id === state.selectedHistoryItemId,
+  );
+
   const handleToggleMic = () => {
     if (isListening) {
       stt.stop().catch(() => {});
     } else {
       stt.start().catch(() => {});
     }
+  };
+
+  const handlePlaySelectedText = () => {
+    if (!selectedHistoryItem?.text) return;
+    tts.speak(selectedHistoryItem.text).catch(() => {});
   };
 
   return (
@@ -145,7 +147,12 @@ export function MainPanel() {
         </View>
       )}
 
-      <AudioBar selectedHistoryItemId={state.selectedHistoryItemId} />
+      <AudioBar
+        selectedHistoryItemId={state.selectedHistoryItemId}
+        status={tts.status}
+        onPlay={handlePlaySelectedText}
+        onStop={() => tts.stop().catch(() => {})}
+      />
 
       {(Object.keys(state.bubbles) as Array<'tts' | 'stt' | 'ocr'>).map((mode) =>
         state.bubbles[mode] && !(mode === 'stt' && state.micPanelOpen) ? (
@@ -175,10 +182,14 @@ export function MainPanel() {
             dispatch({ type: 'CLOSE_MIC_PANEL' });
           }}
           onToggleMic={handleToggleMic}
-          onLanguagePress={() => {
-            /* باز شدن انتخاب‌گر زبان در فاز بعد */
-          }}
+          onLanguagePress={() => {}}
         />
+      )}
+
+      {tts.error && state.activeFeature === 'tts' && (
+        <View style={styles.partialTextBox}>
+          <Text style={styles.errorTextValue}>{tts.error.message}</Text>
+        </View>
       )}
     </SafeAreaView>
   );
