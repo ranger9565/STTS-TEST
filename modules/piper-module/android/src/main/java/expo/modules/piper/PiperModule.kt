@@ -28,18 +28,14 @@ import java.nio.LongBuffer
 class PiperModule : Module() {
 
     private val ortEnv = OrtEnvironment.getEnvironment()
-    private val sessions = mutableMapOf<String, OrtSession>()     // modelId → OrtSession
-    private val configs = mutableMapOf<String, JSONObject>()      // modelId → config JSON
+    private val sessions = mutableMapOf<String, OrtSession>()
+    private val configs = mutableMapOf<String, JSONObject>()
     private var espeakDataDir: String? = null
 
     override fun definition() = ModuleDefinition {
 
         Name("PiperModule")
 
-        /**
-         * بارگذاری مدل و config.
-         * چندین بار با modelId های متفاوت قابل فراخوانی است (fa و en).
-         */
         AsyncFunction("init") { modelPath: String, configPath: String, espeakData: String ->
             espeakDataDir = espeakData
 
@@ -47,9 +43,7 @@ class PiperModule : Module() {
             val config = JSONObject(configJson)
             val modelId = config.optString("key", File(modelPath).nameWithoutExtension)
 
-            // Let ONNX Runtime detect the model format from the file itself.
-            // Piper models are standard .onnx files; forcing ORT format here
-            // can make valid ONNX models fail during session creation.
+            // Piper uses standard .onnx models; let ONNX Runtime detect the format.
             val sessionOptions = OrtSession.SessionOptions().apply {
                 setIntraOpNumThreads(2)
             }
@@ -59,20 +53,14 @@ class PiperModule : Module() {
             configs[modelId] = config
         }
 
-        /**
-         * تبدیل متن به WAV با مدل مشخص.
-         * @return base64-encoded WAV (22050 Hz, 16-bit, mono)
-         */
         AsyncFunction("synthesize") { text: String, modelId: String ->
             val session = sessions[modelId]
                 ?: throw Exception("Model '$modelId' not loaded — call init() first")
             val config = configs[modelId]!!
 
-            // ۱. فونیمیزیشن متن → شناسه‌های صوت با espeak-ng
             val phonemeIds = phonemizeWithEspeak(text, config)
-
-            // ۲. آماده‌سازی tensor ورودی ONNX
             val inputShape = longArrayOf(1, phonemeIds.size.toLong())
+
             val inputTensor = OnnxTensor.createTensor(
                 ortEnv,
                 LongBuffer.wrap(phonemeIds),
@@ -83,34 +71,48 @@ class PiperModule : Module() {
                 LongBuffer.wrap(longArrayOf(phonemeIds.size.toLong())),
                 longArrayOf(1)
             )
-            // noise_scale, length_scale, noise_w از config یا مقادیر پیش‌فرض Piper
+
             val noiseScale = config.optJSONObject("inference")?.optDouble("noise_scale", 0.667) ?: 0.667
             val lengthScale = config.optJSONObject("inference")?.optDouble("length_scale", 1.0) ?: 1.0
             val noiseW = config.optJSONObject("inference")?.optDouble("noise_w", 0.8) ?: 0.8
 
             val scalesTensor = OnnxTensor.createTensor(
                 ortEnv,
-                FloatBuffer.wrap(floatArrayOf(noiseScale.toFloat(), lengthScale.toFloat(), noiseW.toFloat())),
+                FloatBuffer.wrap(
+                    floatArrayOf(
+                        noiseScale.toFloat(),
+                        lengthScale.toFloat(),
+                        noiseW.toFloat()
+                    )
+                ),
                 longArrayOf(3)
             )
 
-            // ۳. اجرای مدل ONNX
-            val inputs = mapOf(
-                "input" to inputTensor,
-                "input_lengths" to inputLengthsTensor,
-                "scales" to scalesTensor
-            )
-            val outputs = session.run(inputs)
-            val audioTensor = outputs[0].value as Array<*>
-            val audioFloats = (audioTensor[0] as Array<*>)[0] as FloatArray
+            try {
+                val inputs = mapOf(
+                    "input" to inputTensor,
+                    "input_lengths" to inputLengthsTensor,
+                    "scales" to scalesTensor
+                )
 
-            // ۴. تبدیل Float32 [-1,1] → Int16 PCM
-            val sampleRate = config.optJSONObject("audio")?.optInt("sample_rate", 22050) ?: 22050
-            val pcm = floatToPcm16(audioFloats)
+                val outputs = session.run(inputs)
+                try {
+                    val audioTensor = outputs[0].value as Array<*>
+                    val audioFloats = (audioTensor[0] as Array<*>)[0] as FloatArray
 
-            // ۵. ساخت فایل WAV و encode به base64
-            val wav = buildWav(pcm, sampleRate)
-            Base64.encodeToString(wav, Base64.NO_WRAP)
+                    val sampleRate =
+                        config.optJSONObject("audio")?.optInt("sample_rate", 22050) ?: 22050
+                    val pcm = floatToPcm16(audioFloats)
+                    val wav = buildWav(pcm, sampleRate)
+                    Base64.encodeToString(wav, Base64.NO_WRAP)
+                } finally {
+                    outputs.close()
+                }
+            } finally {
+                inputTensor.close()
+                inputLengthsTensor.close()
+                scalesTensor.close()
+            }
         }
 
         AsyncFunction("destroy") {
@@ -125,21 +127,14 @@ class PiperModule : Module() {
         }
     }
 
-    /**
-     * فونیمیزیشن متن با espeak-ng از طریق JNI.
-     * espeak-ng-data باید در espeakDataDir موجود باشد.
-     * خروجی: آرایه شناسه‌های صوت (Long) برای ورودی ONNX.
-     */
     private fun phonemizeWithEspeak(text: String, config: JSONObject): LongArray {
-        val lang = config.optString("espeak", "fa")          // "fa" یا "en-us"
+        val lang = config.optString("espeak", "fa")
         val phonemeIdMap = config.optJSONObject("phoneme_id_map")
 
-        // فراخوانی espeak-ng native از طریق JNI
         val phonemeStr = EspeakJni.textToPhonemes(text, lang, espeakDataDir ?: "")
 
-        // تبدیل رشته فونیم‌ها به شناسه‌های عددی با phoneme_id_map
         val ids = mutableListOf<Long>()
-        ids.add(phonemeIdMap?.optJSONArray("^")?.getLong(0) ?: 1L) // BOS token
+        ids.add(phonemeIdMap?.optJSONArray("^")?.getLong(0) ?: 1L)
 
         for (phoneme in phonemeStr) {
             val key = phoneme.toString()
@@ -149,11 +144,10 @@ class PiperModule : Module() {
             }
         }
 
-        ids.add(phonemeIdMap?.optJSONArray("$")?.getLong(0) ?: 2L) // EOS token
+        ids.add(phonemeIdMap?.optJSONArray("$")?.getLong(0) ?: 2L)
         return ids.toLongArray()
     }
 
-    /** تبدیل نمونه‌های Float32 [-1.0, 1.0] به PCM Int16 Little-Endian */
     private fun floatToPcm16(floats: FloatArray): ByteArray {
         val buf = ByteBuffer.allocate(floats.size * 2).order(ByteOrder.LITTLE_ENDIAN)
         for (f in floats) {
@@ -163,7 +157,6 @@ class PiperModule : Module() {
         return buf.array()
     }
 
-    /** ساخت header WAV (RIFF/PCM، 16-bit، mono) و الحاق داده PCM */
     private fun buildWav(pcm: ByteArray, sampleRate: Int): ByteArray {
         val bos = ByteArrayOutputStream()
         val buf = ByteBuffer.allocate(44).order(ByteOrder.LITTLE_ENDIAN)
