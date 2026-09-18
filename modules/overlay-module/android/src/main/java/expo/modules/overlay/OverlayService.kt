@@ -181,8 +181,8 @@ class OverlayService : Service() {
         )
         params.gravity = Gravity.TOP or Gravity.START
         val index = bubbles.size
-        params.x = 16 + index * dpToPx(68)
-        params.y = 400 + index * dpToPx(8)
+        params.x = clampX(16 + index * dpToPx(68))
+        params.y = clampY(400 + index * dpToPx(8))
 
         val state = BubbleState(mode, bubble, params)
         bubble.setOnTouchListener { _, event ->
@@ -216,8 +216,8 @@ class OverlayService : Service() {
                     cancelHoldTimer(state)
                 }
 
-                state.params.x = state.initialX + dx.toInt()
-                state.params.y = state.initialY + dy.toInt()
+                state.params.x = clampX(state.initialX + dx.toInt())
+                state.params.y = clampY(state.initialY + dy.toInt())
                 try {
                     windowManager.updateViewLayout(state.view, state.params)
                 } catch (_: IllegalArgumentException) {
@@ -259,6 +259,16 @@ class OverlayService : Service() {
     private fun cancelHoldTimer(state: BubbleState) {
         state.holdRunnable?.let { handler.removeCallbacks(it) }
         state.holdRunnable = null
+    }
+
+    private fun clampX(x: Int): Int {
+        val width = resources.displayMetrics.widthPixels
+        return x.coerceIn(0, (width - bubbleSizePx).coerceAtLeast(0))
+    }
+
+    private fun clampY(y: Int): Int {
+        val height = resources.displayMetrics.heightPixels
+        return y.coerceIn(0, (height - bubbleSizePx).coerceAtLeast(0))
     }
 
     private fun closeTargetCenter(): Pair<Int, Int> {
