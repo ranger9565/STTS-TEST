@@ -12,6 +12,14 @@ export function concatenateWavBuffers(buffers: ArrayBuffer[]): ArrayBuffer {
   if (buffers.length === 0) {
     throw new Error('حداقل یک بافر WAV برای اتصال لازم است');
   }
+  // هر ورودی باید حداقل Header استاندارد WAV را داشته باشد؛
+  // در غیر این صورت slice(0, 44) می‌تواند Header ناقص تولید کند.
+  for (const [index, buffer] of buffers.entries()) {
+    if (buffer.byteLength < WAV_HEADER_SIZE) {
+      throw new Error(`بافر WAV شماره ${index + 1} کوتاه‌تر از Header استاندارد است`);
+    }
+  }
+
   if (buffers.length === 1) {
     return buffers[0];
   }
