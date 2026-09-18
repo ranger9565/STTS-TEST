@@ -58,9 +58,10 @@ export function useTts(
       if (initPromiseRef.current) {
         await initPromiseRef.current;
       }
-      if (status === 'playing' || status === 'synthesizing') {
-        await stopSpeaking();
-      }
+
+      // توقف امن پخش قبلی؛ لازم نیست status فعلی را از closure بخوانیم.
+      // بنابراین تابع speak پایدار می‌ماند و Linking listener دوباره ثبت نمی‌شود.
+      await stopSpeaking();
 
       setStatus('synthesizing');
       await speak(text, () => setStatus('idle'));
@@ -71,7 +72,7 @@ export function useTts(
       setStatus('error');
       throw e;
     }
-  }, [status]);
+  }, []);
 
   const stop = useCallback(async () => {
     await stopSpeaking();
