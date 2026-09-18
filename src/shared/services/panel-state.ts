@@ -39,12 +39,16 @@ export function panelReducer(state: PanelState, action: PanelAction): PanelState
     case 'SELECT_FEATURE': {
       const bubbleFeatures: ActiveFeature[] = ['stt', 'ocr'];
       const shouldToggleBubble = bubbleFeatures.includes(action.feature);
+
       return {
         ...state,
         activeFeature: action.feature,
+        // وقتی از STT/OCR به TTS یا Settings می‌رویم، حباب قبلی نباید
+        // با mode اشتباه روی صفحه باقی بماند.
         bubbleVisible: shouldToggleBubble
           ? !(state.activeFeature === action.feature && state.bubbleVisible)
-          : state.bubbleVisible,
+          : false,
+        micPanelOpen: action.feature === 'stt' ? state.micPanelOpen : false,
       };
     }
     case 'TOGGLE_BUBBLE':
