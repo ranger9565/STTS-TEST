@@ -25,12 +25,11 @@ import kotlin.math.hypot
  * سرویس فورگراند که حباب شناور را با WindowManager روی کل صفحه‌ی گوشی
  * (بیرون از اپ خودمان، حتی وقتی اپ‌های دیگر باز هستند) نگه می‌دارد.
  *
- * منطق تعامل، دقیقاً معادل native همان چیزی است که در FloatingBubble.tsx
- * برای حالت داخل‌اپ پیاده‌سازی شده:
- *   - تپ ساده روی حباب  → اپ به foreground می‌آید (پنل میکروفون در RN باز می‌شود)
+ * منطق تعامل:
+ *   - تپ ساده روی حباب → اپ به foreground می‌آید و مسیر feature همان حباب را باز می‌کند
  *   - نگه‌داشتن بی‌حرکت ۳ ثانیه → هدف ضربدر ظاهر می‌شود
- *   - درگ‌کردن حباب داخل هدف ضربدر و رهاکردن → سرویس متوقف می‌شود (حباب حذف کامل)
- *   - درگ عادی → فقط جابه‌جایی حباب روی صفحه
+ *   - درگ‌کردن حباب داخل هدف ضربدر و رهاکردن → سرویس متوقف می‌شود
+ *   - درگ عادی → فقط جابه‌جایی حباب
  */
 class OverlayService : Service() {
 
@@ -61,6 +60,7 @@ class OverlayService : Service() {
     private lateinit var windowManager: WindowManager
     private var bubbleView: View? = null
     private var closeTargetView: View? = null
+    private var bubbleMode: String = "stt"
 
     private val handler = Handler(Looper.getMainLooper())
     private var holdRunnable: Runnable? = null
@@ -84,10 +84,17 @@ class OverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val mode = intent?.getStringExtra(EXTRA_MODE) ?: "stt"
+        bubbleMode = normalizeMode(intent?.getStringExtra(EXTRA_MODE))
         startForegroundWithNotification()
-        showBubble(mode)
+        showBubble(bubbleMode)
         return START_STICKY
+    }
+
+    private fun normalizeMode(mode: String?): String {
+        return when (mode) {
+            "tts", "ocr" -> mode
+            else -> "stt"
+        }
     }
 
     private fun startForegroundWithNotification() {
@@ -292,15 +299,14 @@ class OverlayService : Service() {
         target.background = circleDrawable(if (over) 0xFFD9453C.toInt() else 0xFF33363C.toInt())
     }
 
-    /**
-     * حباب لمس شد (تپ ساده، نه هولد/درگ) → اپ اصلی را به foreground می‌آوریم
-     * تا پنل میکروفون (React Native) در همان‌جا باز شود.
-     * توجه: خودِ حباب سیستمی همچنان فعال می‌ماند تا وقتی صراحتاً بسته شود؛
-     * منطق نمایش/مخفی‌کردن آن هنگام foreground/background شدن اپ در JS
-     * (useOverlayBubble.ts) مدیریت می‌شود.
-     */
+    /** تپ ساده → بازکردن مسیر متناظر با نوع حباب */
     private fun onBubbleTapped() {
-        val uri = android.net.Uri.parse("stts://openMic")
+        val path = when (bubbleMode) {
+            "tts" -> "openTts"
+            "ocr" -> "openOcr"
+            else -> "openMic"
+        }
+        val uri = android.net.Uri.parse("stts://$path")
         val intent = Intent(Intent.ACTION_VIEW, uri).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
         }
