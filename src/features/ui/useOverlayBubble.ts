@@ -26,6 +26,7 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
   const startedModesRef = useRef<Set<OverlayBubbleMode>>(new Set());
   const pendingStartRef = useRef<Set<OverlayBubbleMode>>(new Set());
   const pendingStopRef = useRef<Set<OverlayBubbleMode>>(new Set());
+  const permissionRequestedRef = useRef(false);
   const reconcileRef = useRef<() => void>(() => {});
 
   bubblesRef.current = bubbles;
@@ -40,9 +41,14 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
       }
 
       if (!hasOverlayPermission()) {
-        requestOverlayPermission();
+        if (!permissionRequestedRef.current) {
+          permissionRequestedRef.current = true;
+          requestOverlayPermission();
+        }
         return;
       }
+
+      permissionRequestedRef.current = false;
 
       pendingStartRef.current.add(mode);
       try {
@@ -108,6 +114,7 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
         if (wasActive && isNowBackground) {
           reconcile();
         } else if (wasBackground && isNowActive) {
+          permissionRequestedRef.current = false;
           Array.from(startedModesRef.current).forEach((mode) =>
             void stopMode(mode),
           );
