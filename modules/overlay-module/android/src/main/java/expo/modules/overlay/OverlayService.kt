@@ -22,19 +22,16 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
- * سرویس فورگراند که حباب شناور را با WindowManager روی کل صفحه‌ی گوشی
- * (بیرون از اپ خودمان، حتی وقتی اپ‌های دیگر باز هستند) نگه می‌دارد.
+ * سرویس فورگراند حباب‌های شناور.
  *
- * منطق تعامل:
- *   - تپ ساده روی حباب → اپ به foreground می‌آید و مسیر feature همان حباب را باز می‌کند
- *   - نگه‌داشتن بی‌حرکت ۳ ثانیه → هدف ضربدر ظاهر می‌شود
- *   - درگ‌کردن حباب داخل هدف ضربدر و رهاکردن → سرویس متوقف می‌شود
- *   - درگ عادی → فقط جابه‌جایی حباب
+ * هر mode مالک View و وضعیت تعامل خودش است؛ بنابراین STT و TTS/OCR می‌توانند
+ * هم‌زمان وجود داشته باشند و حذف یکی، دیگری را متوقف نمی‌کند.
  */
 class OverlayService : Service() {
 
     companion object {
         const val EXTRA_MODE = "mode"
+        private const val ACTION_STOP_MODE = "expo.modules.overlay.STOP_MODE"
         private const val CHANNEL_ID = "stts_overlay_channel"
         private const val NOTIFICATION_ID = 4201
         private const val HOLD_DURATION_MS = 3000L
@@ -52,25 +49,37 @@ class OverlayService : Service() {
             }
         }
 
-        fun stop(context: Context) {
-            context.stopService(Intent(context, OverlayService::class.java))
+        fun stop(context: Context, mode: String) {
+            val intent = Intent(context, OverlayService::class.java).apply {
+                action = ACTION_STOP_MODE
+                putExtra(EXTRA_MODE, mode)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
         }
     }
 
+    private data class BubbleState(
+        val mode: String,
+        val view: TextView,
+        val params: WindowManager.LayoutParams,
+        var closeTargetView: View? = null,
+        var holdRunnable: Runnable? = null,
+        var initialTouchX: Float = 0f,
+        var initialTouchY: Float = 0f,
+        var initialX: Int = 0,
+        var initialY: Int = 0,
+        var hasMoved: Boolean = false,
+        var closeTargetVisible: Boolean = false,
+    )
+
     private lateinit var windowManager: WindowManager
-    private var bubbleView: View? = null
-    private var closeTargetView: View? = null
-    private var bubbleMode: String = "stt"
-
+    private val bubbles = mutableMapOf<String, BubbleState>()
     private val handler = Handler(Looper.getMainLooper())
-    private var holdRunnable: Runnable? = null
 
-    private var initialTouchX = 0f
-    private var initialTouchY = 0f
-    private var initialX = 0
-    private var initialY = 0
-    private var hasMoved = false
-    private var closeTargetVisible = false
     private var bubbleSizePx = 0
     private var closeTargetSizePx = 0
 
@@ -84,9 +93,16 @@ class OverlayService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        bubbleMode = normalizeMode(intent?.getStringExtra(EXTRA_MODE))
+        val mode = normalizeMode(intent?.getStringExtra(EXTRA_MODE))
+
+        if (intent?.action == ACTION_STOP_MODE) {
+            removeBubble(mode)
+            if (bubbles.isEmpty()) stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
+
         startForegroundWithNotification()
-        showBubble(bubbleMode)
+        showBubble(mode)
         return START_STICKY
     }
 
@@ -142,7 +158,7 @@ class OverlayService : Service() {
     }
 
     private fun showBubble(mode: String) {
-        if (bubbleView != null) return
+        if (bubbles.containsKey(mode)) return
 
         val icon = when (mode) {
             "ocr" -> "📷"
@@ -165,73 +181,85 @@ class OverlayService : Service() {
             PixelFormat.TRANSLUCENT,
         )
         params.gravity = Gravity.TOP or Gravity.START
-        params.x = 16
-        params.y = 400
+        val index = bubbles.size
+        params.x = 16 + index * dpToPx(68)
+        params.y = 400 + index * dpToPx(8)
 
-        bubble.setOnTouchListener { _, event -> handleTouch(event, params); true }
+        val state = BubbleState(mode, bubble, params)
+        bubble.setOnTouchListener { _, event ->
+            handleTouch(state, event)
+            true
+        }
 
         windowManager.addView(bubble, params)
-        bubbleView = bubble
+        bubbles[mode] = state
     }
 
-    private fun handleTouch(event: MotionEvent, params: WindowManager.LayoutParams) {
+    private fun handleTouch(state: BubbleState, event: MotionEvent) {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                hasMoved = false
-                initialX = params.x
-                initialY = params.y
-                initialTouchX = event.rawX
-                initialTouchY = event.rawY
-                scheduleHoldTimer()
+                state.hasMoved = false
+                state.initialX = state.params.x
+                state.initialY = state.params.y
+                state.initialTouchX = event.rawX
+                state.initialTouchY = event.rawY
+                scheduleHoldTimer(state)
             }
 
             MotionEvent.ACTION_MOVE -> {
-                val dx = event.rawX - initialTouchX
-                val dy = event.rawY - initialTouchY
+                val dx = event.rawX - state.initialTouchX
+                val dy = event.rawY - state.initialTouchY
 
-                if (!hasMoved && (abs(dx) > MOVE_THRESHOLD_PX || abs(dy) > MOVE_THRESHOLD_PX)) {
-                    hasMoved = true
-                    cancelHoldTimer()
+                if (!state.hasMoved &&
+                    (abs(dx) > MOVE_THRESHOLD_PX || abs(dy) > MOVE_THRESHOLD_PX)
+                ) {
+                    state.hasMoved = true
+                    cancelHoldTimer(state)
                 }
 
-                params.x = initialX + dx.toInt()
-                params.y = initialY + dy.toInt()
-                bubbleView?.let { windowManager.updateViewLayout(it, params) }
+                state.params.x = state.initialX + dx.toInt()
+                state.params.y = state.initialY + dy.toInt()
+                try {
+                    windowManager.updateViewLayout(state.view, state.params)
+                } catch (_: IllegalArgumentException) {
+                    return
+                }
 
-                if (closeTargetVisible) {
-                    updateCloseTargetHover(params)
+                if (state.closeTargetVisible) {
+                    updateCloseTargetHover(state)
                 }
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                cancelHoldTimer()
-                if (closeTargetVisible) {
-                    val shouldClose = isOverCloseTarget(params)
-                    hideCloseTarget()
+                cancelHoldTimer(state)
+
+                if (state.closeTargetVisible) {
+                    val shouldClose = isOverCloseTarget(state.params)
+                    hideCloseTarget(state)
                     if (shouldClose) {
-                        stopSelf()
+                        removeBubble(state.mode)
                     }
-                } else if (!hasMoved) {
-                    onBubbleTapped()
+                } else if (!state.hasMoved) {
+                    onBubbleTapped(state.mode)
                 }
             }
         }
     }
 
-    private fun scheduleHoldTimer() {
-        cancelHoldTimer()
+    private fun scheduleHoldTimer(state: BubbleState) {
+        cancelHoldTimer(state)
         val runnable = Runnable {
-            if (!hasMoved) {
-                showCloseTarget()
+            if (!state.hasMoved && bubbles[state.mode] === state) {
+                showCloseTarget(state)
             }
         }
-        holdRunnable = runnable
+        state.holdRunnable = runnable
         handler.postDelayed(runnable, HOLD_DURATION_MS)
     }
 
-    private fun cancelHoldTimer() {
-        holdRunnable?.let { handler.removeCallbacks(it) }
-        holdRunnable = null
+    private fun cancelHoldTimer(state: BubbleState) {
+        state.holdRunnable?.let { handler.removeCallbacks(it) }
+        state.holdRunnable = null
     }
 
     private fun closeTargetCenter(): Pair<Int, Int> {
@@ -241,9 +269,9 @@ class OverlayService : Service() {
         return Pair(x, y)
     }
 
-    private fun showCloseTarget() {
-        if (closeTargetView != null) return
-        closeTargetVisible = true
+    private fun showCloseTarget(state: BubbleState) {
+        if (state.closeTargetView != null) return
+        state.closeTargetVisible = true
 
         val target = TextView(this).apply {
             text = "✕"
@@ -258,7 +286,8 @@ class OverlayService : Service() {
             closeTargetSizePx,
             closeTargetSizePx,
             overlayWindowType(),
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
             PixelFormat.TRANSLUCENT,
         )
         params.gravity = Gravity.TOP or Gravity.START
@@ -266,23 +295,22 @@ class OverlayService : Service() {
         params.y = metrics.heightPixels - closeTargetSizePx - dpToPx(80)
 
         windowManager.addView(target, params)
-        closeTargetView = target
+        state.closeTargetView = target
     }
 
-    private fun hideCloseTarget() {
-        closeTargetView?.let { view ->
+    private fun hideCloseTarget(state: BubbleState) {
+        state.closeTargetView?.let { view ->
             try {
                 windowManager.removeView(view)
-            } catch (e: IllegalArgumentException) {
-                // view از قبل حذف شده — نادیده می‌گیریم
+            } catch (_: IllegalArgumentException) {
+                // view از قبل حذف شده است.
             }
         }
-        closeTargetView = null
-        closeTargetVisible = false
+        state.closeTargetView = null
+        state.closeTargetVisible = false
     }
 
     private fun isOverCloseTarget(bubbleParams: WindowManager.LayoutParams): Boolean {
-        if (closeTargetView == null) return false
         val (targetCenterX, targetCenterY) = closeTargetCenter()
         val bubbleCenterX = bubbleParams.x + bubbleSizePx / 2
         val bubbleCenterY = bubbleParams.y + bubbleSizePx / 2
@@ -293,15 +321,16 @@ class OverlayService : Service() {
         return dist < CLOSE_TRIGGER_DISTANCE_PX
     }
 
-    private fun updateCloseTargetHover(bubbleParams: WindowManager.LayoutParams) {
-        val target = closeTargetView as? TextView ?: return
-        val over = isOverCloseTarget(bubbleParams)
-        target.background = circleDrawable(if (over) 0xFFD9453C.toInt() else 0xFF33363C.toInt())
+    private fun updateCloseTargetHover(state: BubbleState) {
+        val target = state.closeTargetView as? TextView ?: return
+        val over = isOverCloseTarget(state.params)
+        target.background = circleDrawable(
+            if (over) 0xFFD9453C.toInt() else 0xFF33363C.toInt(),
+        )
     }
 
-    /** تپ ساده → بازکردن مسیر متناظر با نوع حباب */
-    private fun onBubbleTapped() {
-        val path = when (bubbleMode) {
+    private fun onBubbleTapped(mode: String) {
+        val path = when (mode) {
             "tts" -> "openTts"
             "ocr" -> "openOcr"
             else -> "openMic"
@@ -313,26 +342,38 @@ class OverlayService : Service() {
         startActivity(intent)
     }
 
+    private fun removeBubble(mode: String) {
+        val state = bubbles.remove(mode) ?: return
+        cancelHoldTimer(state)
+        hideCloseTarget(state)
+
+        try {
+            windowManager.removeView(state.view)
+        } catch (_: IllegalArgumentException) {
+            // view از قبل حذف شده است.
+        }
+
+        if (bubbles.isEmpty()) {
+            stopSelf()
+        }
+    }
+
     private fun dpToPx(dp: Int): Int {
         val density = resources.displayMetrics.density
         return (dp * density).toInt()
     }
 
-    private fun removeBubble() {
-        bubbleView?.let { view ->
+    override fun onDestroy() {
+        bubbles.values.toList().forEach { state ->
+            cancelHoldTimer(state)
+            hideCloseTarget(state)
             try {
-                windowManager.removeView(view)
-            } catch (e: IllegalArgumentException) {
-                // view از قبل حذف شده — نادیده می‌گیریم
+                windowManager.removeView(state.view)
+            } catch (_: IllegalArgumentException) {
+                // view از قبل حذف شده است.
             }
         }
-        bubbleView = null
-        hideCloseTarget()
-    }
-
-    override fun onDestroy() {
-        cancelHoldTimer()
-        removeBubble()
+        bubbles.clear()
         super.onDestroy()
     }
 }
