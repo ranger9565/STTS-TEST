@@ -1,7 +1,70 @@
-package expo.modules.overlay\n\nimport android.content.Intent\nimport android.net.Uri\nimport android.os.Build\nimport android.provider.Settings\nimport expo.modules.kotlin.modules.Module\nimport expo.modules.kotlin.modules.ModuleDefinition\n\n/**\n * رابط JavaScript برای حباب‌های شناور سیستمی.\n *\n * startBubble(mode) و stopBubble(mode) مالکیت همان mode را تغییر می‌دهند؛\n * خاموش‌کردن STT نباید TTS یا OCR را خاموش کند.\n */\nclass OverlayModule : Module() {\n\n    override fun definition() = ModuleDefinition {\n        Name("OverlayModule")\n\n        Function("hasOverlayPermission") {\n            hasOverlayPermission()\n        }\n\n        Function("requestOverlayPermission") {\n            val activity = appContext.currentActivity ?: return@Function null\n            val intent = Intent(\n                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,\n                Uri.parse("package:\${activity.packageName}"),\n            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)\n            activity.startActivity(intent)\n            null\n        }\n\n        AsyncFunction("startBubble") { mode: String, visible: Boolean ->\n            val context = appContext.reactContext\n                ?: throw Exception("React context در دسترس نیست")\n\n            if (!hasOverlayPermission()) {\n                throw Exception(\n                    "مجوز «نمایش روی برنامه‌های دیگر» داده نشده — ابتدا requestOverlayPermission را فراخوانی کنید",\n                )\n            }\n\n            OverlayService.start(context, mode, visible)\n        }\n\n        AsyncFunction("setBubbleVisibility") { mode: String, visible: Boolean ->
+package expo.modules.overlay
+
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
+import expo.modules.kotlin.modules.Module
+import expo.modules.kotlin.modules.ModuleDefinition
+
+/**
+ * رابط JavaScript برای حباب‌های شناور سیستمی.
+ *
+ * startBubble(mode) سرویس را در foreground نگه می‌دارد و visibility
+ * حباب را جداگانه کنترل می‌کند؛ بنابراین ورود/خروج اپ از foreground
+ * باعث start شدن سرویس از پس‌زمینه نمی‌شود.
+ */
+class OverlayModule : Module() {
+
+    override fun definition() = ModuleDefinition {
+        Name("OverlayModule")
+
+        Function("hasOverlayPermission") {
+            hasOverlayPermission()
+        }
+
+        Function("requestOverlayPermission") {
+            val activity = appContext.currentActivity ?: return@Function null
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:${activity.packageName}"),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            activity.startActivity(intent)
+            null
+        }
+
+        AsyncFunction("startBubble") { mode: String, visible: Boolean ->
+            val context = appContext.reactContext
+                ?: throw Exception("React context در دسترس نیست")
+
+            if (!hasOverlayPermission()) {
+                throw Exception(
+                    "مجوز «نمایش روی برنامه‌های دیگر» داده نشده — ابتدا requestOverlayPermission را فراخوانی کنید",
+                )
+            }
+
+            OverlayService.start(context, mode, visible)
+        }
+
+        AsyncFunction("setBubbleVisibility") { mode: String, visible: Boolean ->
             val context = appContext.reactContext ?: return@AsyncFunction null
             OverlayService.setVisibility(context, mode, visible)
             null
         }
 
-        AsyncFunction("stopBubble") { mode: String ->\n            val context = appContext.reactContext ?: return@AsyncFunction null\n            OverlayService.stop(context, mode)\n            null\n        }\n    }\n\n    private fun hasOverlayPermission(): Boolean {\n        val context = appContext.reactContext ?: return false\n        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {\n            Settings.canDrawOverlays(context)\n        } else {\n            true\n        }\n    }\n}\n
+        AsyncFunction("stopBubble") { mode: String ->
+            val context = appContext.reactContext ?: return@AsyncFunction null
+            OverlayService.stop(context, mode)
+            null
+        }
+    }
+
+    private fun hasOverlayPermission(): Boolean {
+        val context = appContext.reactContext ?: return false
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(context)
+        } else {
+            true
+        }
+    }
+}
