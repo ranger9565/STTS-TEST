@@ -7,7 +7,7 @@
  *   ۳. نتیجه را از طریق isResultReliable() از ocr-session.ts ارزیابی می‌کند
  */
 
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { tesseractInit, tesseractRecognize, tesseractDestroy } from '../../../modules/tesseract-module/src';
 import { OcrResult, isResultReliable } from './ocr-session';
 
