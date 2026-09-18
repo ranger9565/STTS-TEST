@@ -41,6 +41,7 @@ const MODEL_FILES = {
 let isInitialized = false;
 const playbackQueue = new PlaybackQueue();
 let currentSound: Audio.Sound | null = null;
+let lastAudioPath: string | null = null;
 
 /**
  * مقداردهی اولیه Piper با هر دو مدل (fa و en).
@@ -102,6 +103,7 @@ export async function speak(
   await FileSystem.writeAsStringAsync(outPath, base64Combined, {
     encoding: FileSystem.EncodingType.Base64,
   });
+  lastAudioPath = outPath;
 
   // پخش از طریق expo-av
   await playWavFile(outPath, onFinished);
@@ -109,8 +111,24 @@ export async function speak(
 
 /** ذخیره خروجی صوتی آخرین synthesis به عنوان فایل قابل اشتراک‌گذاری */
 export async function exportLastAudio(savePath: string): Promise<void> {
-  // TODO: ذخیره فایل WAV آخرین synthesis به savePath
-  // (در پیاده‌سازی کامل، مسیر آخرین فایل temporary نگه داشته می‌شود)
+  if (!lastAudioPath) {
+    throw new Error('No synthesized audio is available to export');
+  }
+
+  const sourceInfo = await FileSystem.getInfoAsync(lastAudioPath);
+  if (!sourceInfo.exists) {
+    lastAudioPath = null;
+    throw new Error('The last synthesized audio file no longer exists');
+  }
+
+  if (lastAudioPath === savePath) {
+    return;
+  }
+
+  await FileSystem.copyAsync({
+    from: lastAudioPath,
+    to: savePath,
+  });
 }
 
 /** پخش فایل WAV از مسیر مشخص */
@@ -153,4 +171,5 @@ export async function destroyPiper(): Promise<void> {
   await stopSpeaking();
   await piperDestroy();
   isInitialized = false;
+  lastAudioPath = null;
 }
