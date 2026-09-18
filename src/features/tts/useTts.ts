@@ -1,10 +1,9 @@
 /**
- * React hook برای مدیریت کامل TTS در UI.
+ * React hook برای مدیریت TTS در UI.
  *
- * مدل‌های Piper مقداردهی می‌شوند؛
- * صف پخش PlaybackQueue هماهنگ می‌شود.
+ * مدل‌های Piper مقداردهی می‌شوند و وضعیت synthesis/playback
+ * برای کنترل‌های UI برگردانده می‌شود.
  */
-
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   initPiper,
@@ -19,9 +18,7 @@ export type TtsStatus = 'idle' | 'synthesizing' | 'playing' | 'error';
 
 export interface UseTtsResult {
   status: TtsStatus;
-  /** تبدیل متن به صدا و پخش */
   speak: (text: string) => Promise<void>;
-  /** توقف پخش جاری */
   stop: () => Promise<void>;
   error: Error | null;
 }
@@ -49,17 +46,28 @@ export function useTts(
   }, [modelsDir, espeakDataDir]);
 
   const speakText = useCallback(async (text: string) => {
-    if (status === 'playing' || status === 'synthesizing') {
-      await stopSpeaking();
+    if (!text.trim()) {
+      const e = new Error('TTS text cannot be empty');
+      setError(e);
+      setStatus('error');
+      throw e;
     }
 
     setError(null);
-    setStatus('synthesizing');
 
     try {
+      if (status === 'playing' || status === 'synthesizing') {
+        await stopSpeaking();
+      }
+
+      setStatus('synthesizing');
+
       await speak(text, () => {
         setStatus('idle');
       });
+
+      // speak() resolves when playback has started.
+      // The callback above changes it back to idle when playback finishes.
       setStatus('playing');
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
