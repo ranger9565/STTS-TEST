@@ -84,9 +84,20 @@ class OverlayService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private val stopModeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action != ACTION_STOP_MODE) return
-            val mode = intent.getStringExtra(EXTRA_MODE) ?: return
-            normalizeMode(mode)?.let(::removeBubble)
+            when (intent?.action) {
+                ACTION_STOP_MODE -> {
+                    val mode = intent.getStringExtra(EXTRA_MODE) ?: return
+                    normalizeMode(mode)?.let(::removeBubble)
+                }
+                ACTION_SET_VISIBILITY -> {
+                    val mode = intent.getStringExtra(EXTRA_MODE) ?: return
+                    val visible = intent.getBooleanExtra(EXTRA_VISIBLE, false)
+                    normalizeMode(mode)?.let {
+                        if (visible) showBubble(it) else hideBubble(it)
+                    }
+                }
+                else -> return
+            }
         }
     }
 
@@ -101,7 +112,10 @@ class OverlayService : Service() {
         ContextCompat.registerReceiver(
             this,
             stopModeReceiver,
-            IntentFilter(ACTION_STOP_MODE),
+            IntentFilter().apply {
+                addAction(ACTION_STOP_MODE)
+                addAction(ACTION_SET_VISIBILITY)
+            },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
         bubbleSizePx = dpToPx(56)
