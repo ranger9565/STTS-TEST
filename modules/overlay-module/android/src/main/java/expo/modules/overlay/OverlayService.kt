@@ -54,11 +54,10 @@ class OverlayService : Service() {
                 action = ACTION_STOP_MODE
                 putExtra(EXTRA_MODE, mode)
             }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            // این فرمان فقط حذف یک حباب موجود است؛ سرویس را از نو به‌صورت
+            // foreground راه نمی‌اندازیم تا روی Android 8+ محدودیت شروع سرویس
+            // پس‌زمینه ایجاد نشود.
+            context.startService(intent)
         }
     }
 
