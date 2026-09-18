@@ -3,7 +3,6 @@ import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
-import { FloatingBubble } from './FloatingBubble';
 import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel, HistoryItem } from './HistoryPanel';
@@ -143,20 +142,7 @@ export function MainPanel() {
         onStop={() => tts.stop().catch(() => {})}
       />
 
-      {(Object.keys(state.bubbles) as Array<'tts' | 'stt' | 'ocr'>).map((mode) =>
-        state.bubbles[mode] && !(mode === 'stt' && state.micPanelOpen) ? (
-          <FloatingBubble
-            key={mode}
-            mode={mode}
-            initialX={16 + (mode === 'tts' ? 64 : mode === 'ocr' ? 128 : 0)}
-            onTap={() => {
-              dispatch({ type: 'SELECT_FEATURE', feature: mode });
-              if (mode === 'stt') dispatch({ type: 'OPEN_MIC_PANEL' });
-            }}
-            onClose={() => dispatch({ type: 'HIDE_BUBBLE', mode })}
-          />
-        ) : null,
-      )}
+
 
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
