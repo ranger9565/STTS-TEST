@@ -27,11 +27,11 @@
           "cameraPermission": "برای اسکن متن، دسترسی به دوربین لازم است."
         }
       ],
-      "./modules/vosk-module/expo-plugin",
-      "./modules/overlay-module/expo-plugin",
-      "./modules/piper-module/expo-plugin",
-      "./modules/tesseract-module/expo-plugin",
-      "./modules/typing-module/expo-plugin"
+      "./modules/vosk-module/expo-plugin.js",
+      "./modules/overlay-module/expo-plugin.js",
+      "./modules/piper-module/expo-plugin.js",
+      "./modules/tesseract-module/expo-plugin.js",
+      "./modules/typing-module/expo-plugin.js"
     ],
     "scheme": "stts",
     "extra": {
