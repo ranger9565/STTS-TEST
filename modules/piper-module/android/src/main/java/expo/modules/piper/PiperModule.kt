@@ -47,9 +47,11 @@ class PiperModule : Module() {
             val config = JSONObject(configJson)
             val modelId = config.optString("key", File(modelPath).nameWithoutExtension)
 
+            // Let ONNX Runtime detect the model format from the file itself.
+            // Piper models are standard .onnx files; forcing ORT format here
+            // can make valid ONNX models fail during session creation.
             val sessionOptions = OrtSession.SessionOptions().apply {
                 setIntraOpNumThreads(2)
-                addConfigEntry("session.load_model_format", "ORT")
             }
 
             sessions[modelId]?.close()
@@ -172,13 +174,13 @@ class PiperModule : Module() {
         buf.putInt(fileSize)
         buf.put("WAVE".toByteArray())
         buf.put("fmt ".toByteArray())
-        buf.putInt(16)            // chunk size
-        buf.putShort(1)           // PCM
-        buf.putShort(1)           // mono
+        buf.putInt(16)
+        buf.putShort(1)
+        buf.putShort(1)
         buf.putInt(sampleRate)
-        buf.putInt(sampleRate * 2) // byte rate (16-bit mono)
-        buf.putShort(2)           // block align
-        buf.putShort(16)          // bits per sample
+        buf.putInt(sampleRate * 2)
+        buf.putShort(2)
+        buf.putShort(16)
         buf.put("data".toByteArray())
         buf.putInt(dataSize)
 
@@ -186,5 +188,4 @@ class PiperModule : Module() {
         bos.write(pcm)
         return bos.toByteArray()
     }
-
 }
