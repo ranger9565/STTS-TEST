@@ -1,56 +1,74 @@
 import { panelReducer, initialPanelState } from '../panel-state';
 
-test('انتخاب فیچر صوت‌به‌متن، حباب را نمایش می‌دهد', () => {
-  const state = panelReducer(initialPanelState, { type: 'SELECT_FEATURE', feature: 'stt' });
-  expect(state.activeFeature).toBe('stt');
-  expect(state.bubbleVisible).toBe(true);
-});
-
-test('انتخاب دوباره همان فیچر حباب‌محور، حباب را مخفی می‌کند (toggle)', () => {
+test('انتخاب STT فقط حباب STT را فعال می‌کند', () => {
   let state = panelReducer(initialPanelState, { type: 'SELECT_FEATURE', feature: 'stt' });
-  state = panelReducer(state, { type: 'SELECT_FEATURE', feature: 'stt' });
-  expect(state.bubbleVisible).toBe(false);
+  state = panelReducer(state, { type: 'TOGGLE_BUBBLE', mode: 'stt' });
+  expect(state.activeFeature).toBe('stt');
+  expect(state.bubbles.stt).toBe(true);
+  expect(state.bubbles.tts).toBe(false);
+  expect(state.bubbles.ocr).toBe(false);
 });
 
-test('انتخاب متن‌به‌صوت حباب را تغییر نمی‌دهد (بدون حباب طبق مشخصات)', () => {
-  const state = panelReducer(initialPanelState, { type: 'SELECT_FEATURE', feature: 'tts' });
-  expect(state.activeFeature).toBe('tts');
-  expect(state.bubbleVisible).toBe(false);
+test('حباب STT و TTS می‌توانند هم‌زمان فعال باشند', () => {
+  let state = panelReducer(initialPanelState, { type: 'TOGGLE_BUBBLE', mode: 'stt' });
+  state = panelReducer(state, { type: 'TOGGLE_BUBBLE', mode: 'tts' });
+
+  expect(state.bubbles.stt).toBe(true);
+  expect(state.bubbles.tts).toBe(true);
 });
 
-test('انتخاب تنظیمات حباب را تغییر نمی‌دهد', () => {
+test('خاموش‌کردن TTS حباب STT را دست‌نخورده نگه می‌دارد', () => {
+  let state = {
+    ...initialPanelState,
+    bubbles: { tts: true, stt: true, ocr: false },
+  };
+  state = panelReducer(state, { type: 'HIDE_BUBBLE', mode: 'tts' });
+
+  expect(state.bubbles.tts).toBe(false);
+  expect(state.bubbles.stt).toBe(true);
+});
+
+test('انتخاب تنظیمات هیچ حباب مستقلی را خاموش نمی‌کند', () => {
   const state = panelReducer(
-    { ...initialPanelState, bubbleVisible: true },
+    {
+      ...initialPanelState,
+      bubbles: { tts: true, stt: true, ocr: false },
+    },
     { type: 'SELECT_FEATURE', feature: 'settings' },
   );
-  expect(state.bubbleVisible).toBe(true); // بدون تغییر
-});
 
-test('HIDE_BUBBLE همیشه حباب را مخفی می‌کند', () => {
-  const state = panelReducer(
-    { ...initialPanelState, bubbleVisible: true },
-    { type: 'HIDE_BUBBLE' },
-  );
-  expect(state.bubbleVisible).toBe(false);
+  expect(state.activeFeature).toBe('settings');
+  expect(state.bubbles.tts).toBe(true);
+  expect(state.bubbles.stt).toBe(true);
 });
 
 test('SELECT_HISTORY_ITEM آیتم انتخاب‌شده را تنظیم می‌کند', () => {
-  const state = panelReducer(initialPanelState, { type: 'SELECT_HISTORY_ITEM', itemId: 'abc' });
+  const state = panelReducer(initialPanelState, {
+    type: 'SELECT_HISTORY_ITEM',
+    itemId: 'abc',
+  });
   expect(state.selectedHistoryItemId).toBe('abc');
 });
 
-test('OPEN_MIC_PANEL_DIRECT فیچر stt را فعال و پنل میکروفون را مستقیم باز می‌کند', () => {
+test('OPEN_MIC_PANEL_DIRECT حباب STT و پنل میکروفون را فعال می‌کند', () => {
   const state = panelReducer(initialPanelState, { type: 'OPEN_MIC_PANEL_DIRECT' });
+
   expect(state.activeFeature).toBe('stt');
-  expect(state.bubbleVisible).toBe(true);
+  expect(state.bubbles.stt).toBe(true);
   expect(state.micPanelOpen).toBe(true);
 });
 
-test('HIDE_BUBBLE پنل میکروفون را هم می‌بندد', () => {
+test('HIDE_BUBBLE برای STT فقط STT را می‌بندد و پنل میکروفون را می‌بندد', () => {
   const state = panelReducer(
-    { ...initialPanelState, bubbleVisible: true, micPanelOpen: true },
-    { type: 'HIDE_BUBBLE' },
+    {
+      ...initialPanelState,
+      bubbles: { tts: true, stt: true, ocr: false },
+      micPanelOpen: true,
+    },
+    { type: 'HIDE_BUBBLE', mode: 'stt' },
   );
-  expect(state.bubbleVisible).toBe(false);
+
+  expect(state.bubbles.stt).toBe(false);
+  expect(state.bubbles.tts).toBe(true);
   expect(state.micPanelOpen).toBe(false);
 });
