@@ -3,33 +3,53 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 
 interface AudioBarProps {
   selectedHistoryItemId: string | null;
+  status: 'idle' | 'synthesizing' | 'playing' | 'error';
+  onPlay: () => void;
+  onStop: () => void;
 }
 
 /**
- * نوار پخش ثابت پایین: افزودن فایل، پخش/توقف (تک دکمه)، قبلی/بعدی، تایم‌لاین.
- * منطق واقعی پخش/آپلود/STT همزمان در سرویس‌های جداگانه پیاده می‌شود؛
- * این کامپوننت فقط نمایش و اتصال رویداد است.
+ * نوار پخش واقعی TTS برای متن انتخاب‌شده از تاریخچه.
+ * وضعیت پخش از موتور Piper می‌آید؛ این کامپوننت فقط کنترل‌های پخش را ارائه می‌کند.
  */
-export function AudioBar({ selectedHistoryItemId }: AudioBarProps) {
+export function AudioBar({
+  selectedHistoryItemId,
+  status,
+  onPlay,
+  onStop,
+}: AudioBarProps) {
+  const canPlay = Boolean(selectedHistoryItemId) && status !== 'synthesizing';
+
   return (
     <View style={styles.bar}>
-      <Pressable accessibilityLabel="افزودن فایل">
-        <Text style={styles.icon}>＋</Text>
+      <Pressable
+        accessibilityLabel="پخش یا توقف"
+        disabled={!canPlay}
+        onPress={status === 'playing' ? onStop : onPlay}
+        style={!canPlay && styles.disabled}
+      >
+        <Text style={styles.playIcon}>
+          {status === 'playing' ? '⏸' : status === 'synthesizing' ? '…' : '▶'}
+        </Text>
       </Pressable>
-      <Pressable accessibilityLabel="قبلی">
-        <Text style={styles.icon}>⏮</Text>
-      </Pressable>
-      <Pressable accessibilityLabel="پخش یا توقف">
-        <Text style={styles.playIcon}>▶</Text>
-      </Pressable>
-      <Pressable accessibilityLabel="بعدی">
-        <Text style={styles.icon}>⏭</Text>
-      </Pressable>
+
       <View style={styles.timeline}>
-        <View style={styles.timelineFill} />
+        <View
+          style={[
+            styles.timelineFill,
+            status === 'playing' && styles.timelinePlaying,
+          ]}
+        />
       </View>
+
       <Text style={styles.timeText}>
-        {selectedHistoryItemId ? `#${selectedHistoryItemId}` : '۰:۰۰'}
+        {selectedHistoryItemId
+          ? status === 'synthesizing'
+            ? 'در حال ساخت صدا…'
+            : status === 'playing'
+              ? 'در حال پخش'
+              : 'آماده پخش'
+          : 'متنی انتخاب نشده'}
       </Text>
     </View>
   );
@@ -44,9 +64,25 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     margin: 8,
   },
-  icon: { fontSize: 16 },
   playIcon: { fontSize: 20 },
-  timeline: { flex: 1, height: 4, borderRadius: 2 },
-  timelineFill: { height: 4, width: '35%', borderRadius: 2 },
-  timeText: { fontSize: 11 },
+  timeline: {
+    flex: 1,
+    height: 4,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  timelineFill: {
+    height: 4,
+    width: '0%',
+    borderRadius: 2,
+  },
+  timelinePlaying: {
+    width: '35%',
+  },
+  timeText: {
+    minWidth: 72,
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  disabled: { opacity: 0.45 },
 });
