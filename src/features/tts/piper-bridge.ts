@@ -9,7 +9,7 @@
  */
 
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { piperInit, piperSynthesize, piperDestroy } from '../../../modules/piper-module/src';
 import { buildTtsRequests, TtsRequest } from './tts-service';
 import { concatenateWavBuffers } from './wav-concatenator';
