@@ -24,40 +24,60 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
   const appState = useRef<AppStateStatus>(AppState.currentState);
   const bubblesRef = useRef(bubbles);
   const startedModesRef = useRef<Set<OverlayBubbleMode>>(new Set());
+  const pendingStartRef = useRef<Set<OverlayBubbleMode>>(new Set());
+  const pendingStopRef = useRef<Set<OverlayBubbleMode>>(new Set());
+  const reconcileRef = useRef<() => void>(() => {});
 
   bubblesRef.current = bubbles;
 
   useEffect(() => {
     const startMode = async (mode: OverlayBubbleMode) => {
-      if (startedModesRef.current.has(mode)) return;
+      if (
+        startedModesRef.current.has(mode) ||
+        pendingStartRef.current.has(mode)
+      ) {
+        return;
+      }
 
       if (!hasOverlayPermission()) {
         requestOverlayPermission();
         return;
       }
 
+      pendingStartRef.current.add(mode);
       try {
         await startOverlayBubble(mode);
         startedModesRef.current.add(mode);
       } catch {
         // تلاش بعدی با تغییر lifecycle یا وضعیت حباب انجام می‌شود.
+      } finally {
+        pendingStartRef.current.delete(mode);
       }
     };
 
     const stopMode = async (mode: OverlayBubbleMode) => {
-      if (!startedModesRef.current.has(mode)) return;
+      if (
+        !startedModesRef.current.has(mode) ||
+        pendingStopRef.current.has(mode)
+      ) {
+        return;
+      }
 
+      pendingStopRef.current.add(mode);
       try {
         await stopOverlayBubble(mode);
       } finally {
+        pendingStopRef.current.delete(mode);
         startedModesRef.current.delete(mode);
       }
     };
 
     const reconcile = () => {
       const requested = bubblesRef.current;
+      const isBackground =
+        appState.current === 'background' || appState.current === 'inactive';
 
-      if (appState.current !== 'background' && appState.current !== 'inactive') {
+      if (!isBackground) {
         Array.from(startedModesRef.current).forEach((mode) => {
           if (!requested[mode]) void stopMode(mode);
         });
@@ -70,49 +90,46 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
       });
     };
 
-    const subscription = AppState.addEventListener('change', (next: AppStateStatus) => {
-      const previous = appState.current;
-      appState.current = next;
+    reconcileRef.current = reconcile;
 
-      const wasActive = previous === 'active';
-      const isNowBackground = next === 'inactive' || next === 'background';
-      const wasBackground = previous === 'inactive' || previous === 'background';
-      const isNowActive = next === 'active';
+    const subscription = AppState.addEventListener(
+      'change',
+      (next: AppStateStatus) => {
+        const previous = appState.current;
+        appState.current = next;
 
-      if (wasActive && isNowBackground) {
-        reconcile();
-      } else if (wasBackground && isNowActive) {
-        Array.from(startedModesRef.current).forEach((mode) => void stopMode(mode));
-      }
-    });
+        const wasActive = previous === 'active';
+        const isNowBackground =
+          next === 'inactive' || next === 'background';
+        const wasBackground =
+          previous === 'inactive' || previous === 'background';
+        const isNowActive = next === 'active';
+
+        if (wasActive && isNowBackground) {
+          reconcile();
+        } else if (wasBackground && isNowActive) {
+          Array.from(startedModesRef.current).forEach((mode) =>
+            void stopMode(mode),
+          );
+        }
+      },
+    );
 
     return () => {
       subscription.remove();
-      Array.from(startedModesRef.current).forEach((mode) => void stopMode(mode));
+      reconcileRef.current = () => {};
+      Array.from(startedModesRef.current).forEach((mode) =>
+        void stopMode(mode),
+      );
     };
   }, []);
 
   useEffect(() => {
-    if (appState.current === 'background' || appState.current === 'inactive') {
-      const requested = new Set(
-        (Object.keys(bubbles) as OverlayBubbleMode[]).filter((mode) => bubbles[mode]),
-      );
-
-      Array.from(startedModesRef.current).forEach((mode) => {
-        if (!requested.has(mode)) {
-          void stopOverlayBubble(mode);
-          startedModesRef.current.delete(mode);
-        }
-      });
-
-      requested.forEach((mode) => {
-        if (hasOverlayPermission() && !startedModesRef.current.has(mode)) {
-          void startOverlayBubble(mode).then(
-            () => startedModesRef.current.add(mode),
-            () => {},
-          );
-        }
-      });
+    if (
+      appState.current === 'background' ||
+      appState.current === 'inactive'
+    ) {
+      reconcileRef.current();
     }
   }, [bubbles]);
 }
