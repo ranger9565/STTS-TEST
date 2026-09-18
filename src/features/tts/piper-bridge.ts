@@ -94,7 +94,14 @@ export async function speak(
     throw new Error('Piper bridge not initialized — call initPiper() first');
   }
 
+  if (!text.trim()) {
+    throw new Error('TTS text cannot be empty');
+  }
+
   const requests: TtsRequest[] = buildTtsRequests(text, `tts-${Date.now()}`);
+  if (requests.length === 0) {
+    throw new Error('TTS produced no synthesis requests');
+  }
 
   // synthesis موازی تمام بخش‌ها
   const wavBuffers: ArrayBuffer[] = await Promise.all(
