@@ -365,3 +365,93 @@ class OverlayService : Service() {
     }
 
 
+    private fun updateCloseTargetHover(state: BubbleState) {
+        val target = state.closeTargetView ?: return
+        val over = isOverCloseTarget(state.params)
+        target.background = circleDrawable(
+            if (over) 0xFFE53935.toInt() else 0xFF33363C.toInt()
+        )
+    }
+
+    private fun isOverCloseTarget(params: WindowManager.LayoutParams): Boolean {
+        val (targetX, targetY) = closeTargetCenter()
+        val bubbleCenterX = params.x + bubbleSizePx / 2
+        val bubbleCenterY = params.y + bubbleSizePx / 2
+        return hypot(
+            (bubbleCenterX - targetX).toDouble(),
+            (bubbleCenterY - targetY).toDouble(),
+        ) <= CLOSE_TRIGGER_DISTANCE_PX
+    }
+
+    private fun hideCloseTarget(state: BubbleState) {
+        cancelHoldTimer(state)
+        state.closeTargetView?.let { view ->
+            try {
+                windowManager.removeView(view)
+            } catch (_: IllegalArgumentException) {
+                // Already removed by the window manager.
+            }
+        }
+        state.closeTargetView = null
+        state.closeTargetVisible = false
+    }
+
+    private fun removeBubble(mode: String) {
+        val state = bubbles.remove(mode) ?: return
+        cancelHoldTimer(state)
+        hideCloseTarget(state)
+        try {
+            windowManager.removeView(state.view)
+        } catch (_: IllegalArgumentException) {
+            // View was already detached.
+        }
+        if (bubbles.isEmpty()) {
+            stopSelf()
+        }
+    }
+
+    private fun onBubbleTapped(mode: String) {
+        val route = when (mode) {
+            "stt" -> "openMic"
+            "tts" -> "openTts"
+            "ocr" -> "openOcr"
+            else -> return
+        }
+        val intent = Intent(
+            Intent.ACTION_VIEW,
+            android.net.Uri.parse("stts://$route"),
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            setPackage(packageName)
+        }
+        try {
+            startActivity(intent)
+        } catch (_: Exception) {
+            // The app activity may not currently be resolvable.
+        }
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).roundToInt()
+    }
+
+    override fun onDestroy() {
+        bubbles.values.toList().forEach { state ->
+            cancelHoldTimer(state)
+            hideCloseTarget(state)
+            try {
+                windowManager.removeView(state.view)
+            } catch (_: IllegalArgumentException) {
+                // View was already detached.
+            }
+        }
+        bubbles.clear()
+        handler.removeCallbacksAndMessages(null)
+        try {
+            unregisterReceiver(stopModeReceiver)
+        } catch (_: IllegalArgumentException) {
+            // Receiver was already unregistered.
+        }
+        super.onDestroy()
+    }
+}
