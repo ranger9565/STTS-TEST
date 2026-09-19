@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
 import { MicPanel } from './MicPanel';
+import { OcrPanel } from './OcrPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel, HistoryItem } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
@@ -143,6 +144,17 @@ export function MainPanel() {
       />
 
 
+
+      {state.activeFeature === 'ocr' && (
+        <OcrPanel
+          onClose={() => dispatch({ type: 'SELECT_FEATURE', feature: null })}
+          onReadResult={(text) => {
+            setExternalTtsText(text);
+            dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
+            tts.speak(text).catch(() => {});
+          }}
+        />
+      )}
 
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
