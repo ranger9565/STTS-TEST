@@ -4,6 +4,7 @@ const path = require('path');
 const root = path.resolve(__dirname, '..');
 const targets = [
   path.join(root, 'node_modules', '@react-native', 'gradle-plugin'),
+  path.join(root, 'node_modules', 'expo-modules-autolinking', 'android', 'expo-gradle-plugin'),
   path.join(root, 'node_modules', 'react-native', 'ReactAndroid'),
   path.join(root, 'node_modules', 'react-native-reanimated', 'android'),
   path.join(root, 'node_modules', 'react-native-worklets', 'android'),
