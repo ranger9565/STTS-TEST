@@ -29,8 +29,6 @@ class TesseractModule : Module() {
             if (!success) {
                 throw Exception("Tesseract init failed — tessdata not found at: $tessDataPath/tessdata/")
             }
-            // بهینه‌سازی برای متن چندزبانه فارسی/انگلیسی
-            api.setVariable(TessBaseAPI.VAR_CHAR_WHITELIST, "")
             api.pageSegMode = TessBaseAPI.PageSegMode.PSM_AUTO_OSD
             tess = api
             currentLanguage = language
