@@ -6,7 +6,6 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Camera } from 'expo-camera';
 import {
   OcrSession,
   OcrScanMode,
