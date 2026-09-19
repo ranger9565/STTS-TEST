@@ -14,7 +14,6 @@ Expo / React Native / TypeScript (strict) / pnpm / SQLite Native
 - `retention-rule.ts` — قانون نگهداری صدا/متن بر اساس منبع (۳ تست)
 - `language-tokenizer.ts` — تشخیص فارسی/انگلیسی + تقسیم متن به بخش‌ها (۵ تست)
 - `storage-quota.ts` — سقف ۵۰۰ مگابایتی تاریخچه و هشدارها (۵ تست)
-- `silence-trimmer.ts` — حذف سکوت انتهایی صدا با 350ms padding (۳ تست)
 - `stt-session.ts` — مدیریت وضعیت جلسه STT (۶ تست)
 - `tts-service.ts` — انتخاب خودکار مدل TTS بر اساس زبان (۳ تست)
 - `ocr-session.ts` — مدیریت وضعیت اسکن + بررسی اطمینان نتیجه (۸ تست)
