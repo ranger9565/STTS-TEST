@@ -1,25 +1,22 @@
 /**
- * کپی مدل‌های AI از bundled assets به filesDir دستگاه.
+ * کپی واقعی مدل‌های AI از bundled Android assets به filesDir/documentDirectory اپ.
  *
- * این سرویس در اولین اجرای اپ (یا هر بار که مدل وجود نداشته باشد) فراخوانی می‌شود.
- * مدل‌ها در android/app/src/main/assets/ بسته‌بندی می‌شوند و اینجا extract می‌شوند.
- *
- * مدل‌های مورد نیاز (باید در android/app/src/main/assets/ قرار گیرند):
- *   - vosk/vosk-model-small-fa-0.42/   (~53MB)
- *   - piper/fa_IR-gyro-medium.onnx     (~63MB)
- *   - piper/fa_IR-gyro-medium.onnx.json
- *   - piper/en_US-lessac-medium.onnx   (~63MB)
- *   - piper/en_US-lessac-medium.onnx.json
- *   - espeak-ng-data/                  (~2MB)
- *   - tessdata/fas.traineddata         (~8MB)
+ * Android assets در build داخل android/app/src/main/assets/ قرار می‌گیرند.
+ * FileSystem.bundleDirectory به همین bundle دسترسی read-only می‌دهد و
+ * FileSystem.copyAsync می‌تواند فایل/پوشه bundled را به فضای writable اپ کپی کند.
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { Asset } from 'expo-asset';
 
-/** نشانه نسخه — اگر این تغییر کند، مدل‌ها مجدداً کپی می‌شوند */
-const MODEL_VERSION = '1.0.0';
+const MODEL_VERSION = '2.0.0';
 const VERSION_FILE = `${FileSystem.documentDirectory}.model_version`;
+
+const ASSET_ROOT = {
+  vosk: 'vosk/vosk-model-small-fa-0.42',
+  piper: 'piper',
+  espeak: 'espeak-ng-data',
+  tessdata: 'tessdata',
+} as const;
 
 export interface ModelPaths {
   voskModelPath: string;
@@ -28,35 +25,115 @@ export interface ModelPaths {
   tessDataPath: string;
 }
 
-/**
- * بررسی و کپی مدل‌ها از assets به دستگاه (در صورت نیاز).
- * @returns مسیر کامل هر مدل روی دستگاه
- */
 export async function ensureModelsReady(): Promise<ModelPaths> {
+  const documentDirectory = FileSystem.documentDirectory;
+  const bundleDirectory = FileSystem.bundleDirectory;
+
+  if (!documentDirectory) {
+    throw new Error('STTS model storage is unavailable: documentDirectory is null.');
+  }
+  if (!bundleDirectory) {
+    throw new Error('STTS model assets are unavailable: bundleDirectory is null.');
+  }
+
   const paths: ModelPaths = {
-    voskModelPath: `${FileSystem.documentDirectory}vosk-model-small-fa-0.42`,
-    piperModelsDir: `${FileSystem.documentDirectory}piper-models`,
-    espeakDataDir: `${FileSystem.documentDirectory}espeak-ng-data`,
-    tessDataPath: FileSystem.documentDirectory ?? '',
+    voskModelPath: `${documentDirectory}vosk-model-small-fa-0.42`,
+    piperModelsDir: `${documentDirectory}piper-models`,
+    espeakDataDir: `${documentDirectory}espeak-ng-data`,
+    tessDataPath: documentDirectory,
   };
 
-  // بررسی نسخه — اگر مدل‌ها از قبل کپی شده‌اند، کاری نکن
+  const requiredDestinations = [
+    paths.voskModelPath,
+    `${paths.piperModelsDir}/fa_IR-gyro-medium.onnx`,
+    `${paths.piperModelsDir}/fa_IR-gyro-medium.onnx.json`,
+    `${paths.piperModelsDir}/en_US-lessac-medium.onnx`,
+    `${paths.piperModelsDir}/en_US-lessac-medium.onnx.json`,
+    `${paths.espeakDataDir}/phsource`,
+    `${paths.tessDataPath}tessdata/fas.traineddata`,
+  ];
+
   const currentVersion = await readVersionFile();
-  if (currentVersion === MODEL_VERSION) {
+  const complete = currentVersion === MODEL_VERSION && await allExist(requiredDestinations);
+
+  if (complete) {
     return paths;
   }
 
-  // ساخت پوشه‌های مقصد
   await ensureDir(paths.piperModelsDir);
   await ensureDir(paths.espeakDataDir);
   await ensureDir(`${paths.tessDataPath}tessdata`);
 
-  // در محیط واقعی این asset ها باید به جای require() از FileSystem.Asset.loadAsync استفاده کنند
-  // اینجا ساختار را آماده می‌کنیم؛ فایل‌های واقعی در android/app/src/main/assets/ قرار می‌گیرند
-  // و از طریق expo-asset در runtime بارگذاری می‌شوند
+  // اگر نسخه قبلی ناقص/قدیمی است، مقصدهای مدل را پاک می‌کنیم تا
+  // فایل‌های قدیمی با مدل جدید مخلوط نشوند.
+  await removeIfExists(paths.voskModelPath);
+  await removeIfExists(paths.piperModelsDir);
+  await removeIfExists(paths.espeakDataDir);
+  await removeIfExists(`${paths.tessDataPath}tessdata`);
+
+  await copyBundledDirectory(
+    bundleDirectory,
+    ASSET_ROOT.vosk,
+    paths.voskModelPath,
+  );
+  await copyBundledDirectory(
+    bundleDirectory,
+    ASSET_ROOT.piper,
+    paths.piperModelsDir,
+  );
+  await copyBundledDirectory(
+    bundleDirectory,
+    ASSET_ROOT.espeak,
+    paths.espeakDataDir,
+  );
+  await copyBundledDirectory(
+    bundleDirectory,
+    ASSET_ROOT.tessdata,
+    `${paths.tessDataPath}tessdata`,
+  );
+
+  const copied = await allExist(requiredDestinations);
+  if (!copied) {
+    throw new Error(
+      'STTS model extraction finished without all required model files. ' +
+        'Check android/app/src/main/assets contents.',
+    );
+  }
 
   await writeVersionFile(MODEL_VERSION);
   return paths;
+}
+
+async function copyBundledDirectory(
+  bundleRoot: string,
+  relativeSource: string,
+  destination: string,
+): Promise<void> {
+  const source = joinUri(bundleRoot, relativeSource);
+  const sourceInfo = await FileSystem.getInfoAsync(source);
+
+  if (!sourceInfo.exists || !sourceInfo.isDirectory) {
+    throw new Error(`Missing bundled STTS asset directory: ${relativeSource}`);
+  }
+
+  await ensureDir(parentDirectory(destination));
+  await FileSystem.copyAsync({
+    from: source,
+    to: destination,
+  });
+}
+
+async function allExist(paths: string[]): Promise<boolean> {
+  const results = await Promise.all(
+    paths.map(async (path) => {
+      try {
+        return (await FileSystem.getInfoAsync(path)).exists;
+      } catch {
+        return false;
+      }
+    }),
+  );
+  return results.every(Boolean);
 }
 
 async function ensureDir(path: string): Promise<void> {
@@ -66,11 +143,18 @@ async function ensureDir(path: string): Promise<void> {
   }
 }
 
+async function removeIfExists(path: string): Promise<void> {
+  const info = await FileSystem.getInfoAsync(path);
+  if (info.exists) {
+    await FileSystem.deleteAsync(path, { idempotent: true });
+  }
+}
+
 async function readVersionFile(): Promise<string | null> {
   try {
     const info = await FileSystem.getInfoAsync(VERSION_FILE);
     if (!info.exists) return null;
-    return await FileSystem.readAsStringAsync(VERSION_FILE);
+    return (await FileSystem.readAsStringAsync(VERSION_FILE)).trim();
   } catch {
     return null;
   }
@@ -80,4 +164,13 @@ async function writeVersionFile(version: string): Promise<void> {
   await FileSystem.writeAsStringAsync(VERSION_FILE, version, {
     encoding: FileSystem.EncodingType.UTF8,
   });
+}
+
+function joinUri(root: string, relativePath: string): string {
+  return `${root.replace(/\\?\/$/, '')}/${relativePath}`;
+}
+
+function parentDirectory(path: string): string {
+  const index = path.lastIndexOf('/');
+  return index >= 0 ? path.slice(0, index + 1) : path;
 }
