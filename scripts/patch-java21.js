@@ -15,23 +15,37 @@ function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
     if (entry.isDirectory()) out.push(...walk(file));
-    else if (entry.isFile() && (file.endsWith('.gradle.kts') || file.endsWith('.kt'))) out.push(file);
+    else if (
+      entry.isFile() &&
+      (file.endsWith('.gradle') ||
+        file.endsWith('.gradle.kts') ||
+        file.endsWith('.kt'))
+    ) {
+      out.push(file);
+    }
   }
   return out;
 }
 
 let changed = 0;
+
 for (const file of targets.flatMap(walk)) {
   const before = fs.readFileSync(file, 'utf8');
   const after = before
-    .replace(/jvmToolchain\\(17\\)/g, 'jvmToolchain(21)')
-    .replace(/JavaVersion\\.VERSION_17/g, 'JavaVersion.VERSION_21')
-    .replace(/JvmTarget\\.JVM_17/g, 'JvmTarget.JVM_21')
-    .replace(/fromTarget\\(["']17["']\\)/g, 'fromTarget("21")');
+    .replace(/jvmToolchain\(17\)/g, 'jvmToolchain(21)')
+    .replace(/JavaVersion\.VERSION_17/g, 'JavaVersion.VERSION_21')
+    .replace(/JvmTarget\.JVM_17/g, 'JvmTarget.JVM_21')
+    .replace(/fromTarget\(["']17["']\)/g, 'fromTarget("21")')
+    .replace(/JavaLanguageVersion\.of\(17\)/g, 'JavaLanguageVersion.of(21)');
+
   if (after !== before) {
     fs.writeFileSync(file, after);
     changed += 1;
   }
 }
 
-console.log(changed ? `Java 21 toolchain compatibility patch applied to ${changed} file(s).` : 'Java 21 toolchain compatibility patch already applied or no matching files found.');
+console.log(
+  changed
+    ? `Java 21 toolchain compatibility patch applied to ${changed} file(s).`
+    : 'Java 21 toolchain compatibility patch already applied or no matching files found.',
+);
