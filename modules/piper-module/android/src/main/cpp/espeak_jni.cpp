@@ -39,19 +39,20 @@ Java_expo_modules_piper_EspeakJni_textToPhonemes(
     if (ensureInit(dataPath)) {
         espeak_SetVoiceByName(voice);
 
-        // تبدیل متن به فونیم با فلگ IPA
-        unsigned int flags = espeakPHONEMES | espeakPHONEMES_IPA;
-        const char* phonemes = nullptr;
-
-        // espeak_TextToPhonemes برای text کوتاه‌تر از ۵۰۰ کاراکتر
-        unsigned int* ident = nullptr;
-        espeak_SetParameter(espeakPITCH, 50, 0);
-
-        // استفاده از espeak_ng_TextToPhonemes برای دریافت خروجی مستقیم
-        char buf[4096] = {};
-        int pos = 0;
-        espeak_ng_TEXT_TO_PHONEMES(text, espeakCHARS_UTF8, flags, buf, sizeof(buf) - 1, &pos);
-        result = buf;
+        // تبدیل متن به فونیم با API واقعی espeak-ng.
+        // espeak_TextToPhonemes یک clause را در هر فراخوانی برمی‌گرداند
+        // و text pointer را به بخش بعدی متن جلو می‌برد.
+        const void* textPtr = text;
+        while (textPtr != nullptr) {
+            const char* phonemes = espeak_TextToPhonemes(
+                &textPtr,
+                espeakCHARS_UTF8,
+                espeakPHONEMES_IPA
+            );
+            if (phonemes == nullptr) break;
+            result += phonemes;
+            if (textPtr == nullptr) break;
+        }
     }
 
     env->ReleaseStringUTFChars(jText,     text);
