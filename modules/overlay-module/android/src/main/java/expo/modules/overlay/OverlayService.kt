@@ -219,16 +219,12 @@ class OverlayService : Service() {
             // microphone مجاز است (Android 11+). نوع microphone فقط وقتی اضافه می‌شود
             // که RECORD_AUDIO داده شده باشد، وگرنه Android 14 خطای امنیتی می‌دهد.
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && includeMicrophone && hasMicPermission()) {
-                try {
-                    startForeground(
-                        NOTIFICATION_ID,
-                        notification,
-                        specialUse or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-                    )
-                    return
-                } catch (_: RuntimeException) {
-                    // سیستم نوع microphone را در این لحظه نپذیرفت؛ به حالت قبلی برمی‌گردیم.
-                }
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    specialUse or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                )
+                return
             }
             startForeground(NOTIFICATION_ID, notification, specialUse)
         } else {
