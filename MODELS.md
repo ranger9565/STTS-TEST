@@ -86,8 +86,7 @@ eas build --platform android --profile preview
 
 ## نکات مهم
 
-- **espeak-ng submodule**: برای کامپایل لایه JNI فونیمیزیشن Piper لازم است.
-  فایل `modules/piper-module/android/src/main/cpp/CMakeLists.txt` آن را expect می‌کند.
+- **eSpeak NG source**: برای کامپایل لایه JNI فونیمیزیشن Piper لازم است. اسکریپت EAS سورس ثابت eSpeak NG 1.52.0 را در `modules/piper-module/android/third_party/espeak-ng` آماده می‌کند؛ Git submodule لازم نیست.
 
 - **ONNX Runtime**: از طریق وابستگی `onnxruntime-react-native` به صورت transitiveای موجود است.
   نیازی به دانلود جداگانه نیست.
