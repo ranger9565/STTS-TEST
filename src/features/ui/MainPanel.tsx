@@ -1,5 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react';
-import { View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
+import { Alert, View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
@@ -24,6 +24,7 @@ export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [externalTtsText, setExternalTtsText] = useState<string | null>(null);
+  const [notificationVisible, setNotificationVisible] = useState(false);
   const stt = useStt();
   const tts = useTts();
   const isListening = stt.session.state === 'listening';
@@ -92,10 +93,55 @@ export function MainPanel() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
-        <Pressable accessibilityLabel="بستن"><Text style={styles.topIcon}>✕</Text></Pressable>
-        <Pressable accessibilityLabel="اعلان‌ها"><Text style={styles.topIcon}>🔔</Text></Pressable>
-        <Pressable accessibilityLabel="گزینه‌ها"><Text style={styles.topIcon}>⋮</Text></Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="بستن پنل"
+          onPress={() => {
+            if (isListening) stt.stop().catch(() => {});
+            dispatch({ type: 'SELECT_FEATURE', feature: null });
+          }}
+        ><Text style={styles.topIcon}>✕</Text></Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="اعلان‌ها"
+          onPress={() => setNotificationVisible((visible) => !visible)}
+        ><Text style={styles.topIcon}>🔔</Text></Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="تنظیمات و گزینه‌ها"
+          onPress={() => dispatch({ type: 'SELECT_FEATURE', feature: 'settings' })}
+        ><Text style={styles.topIcon}>⋮</Text></Pressable>
       </View>
+
+      {notificationVisible && (
+        <View style={styles.notificationBox}>
+          <Text style={styles.notificationText}>
+            {isListening ? 'میکروفون STT فعال است.' : tts.status === 'playing' ? 'پخش TTS فعال است.' : 'STTS آماده است.'}
+          </Text>
+        </View>
+      )}
+
+      {state.activeFeature === 'settings' && (
+        <View style={styles.settingsPanel}>
+          <Text style={styles.settingsTitle}>تنظیمات عملیاتی STTS</Text>
+          <Pressable style={styles.settingsButton} onPress={openAccessibilitySettings}>
+            <Text style={styles.settingsButtonText}>تنظیم سرویس دسترس‌پذیری تایپ</Text>
+          </Pressable>
+          <Pressable
+            style={styles.settingsButton}
+            onPress={() => {
+              (['stt', 'tts', 'ocr'] as const).forEach((mode) => {
+                if (state.bubbles[mode]) dispatch({ type: 'HIDE_BUBBLE', mode });
+              });
+            }}
+          >
+            <Text style={styles.settingsButtonText}>بستن همه حباب‌ها</Text>
+          </Pressable>
+          <Pressable style={styles.settingsButton} onPress={() => dispatch({ type: 'SELECT_FEATURE', feature: null })}>
+            <Text style={styles.settingsButtonText}>بستن تنظیمات</Text>
+          </Pressable>
+        </View>
+      )}
 
       <View style={styles.mainRow}>
         <HistoryPanel
@@ -167,7 +213,10 @@ export function MainPanel() {
             dispatch({ type: 'CLOSE_MIC_PANEL' });
           }}
           onToggleMic={handleToggleMic}
-          onLanguagePress={() => {}}
+          onLanguagePress={() => Alert.alert(
+            'زبان STT',
+            'در نسخه فعلی موتور Vosk فقط مدل فارسی فعال است؛ انتخاب EN هنوز به موتور انگلیسی متصل نشده و عمداً غیرفعال نگه داشته شده است.',
+          )}
         />
       )}
 
@@ -187,6 +236,12 @@ const styles = StyleSheet.create({
   featureButton: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   featureButtonActive: { opacity: 0.7 },
   featureLabel: { fontSize: 11, textAlign: 'center' },
+  notificationBox: { marginHorizontal: 8, marginBottom: 6, padding: 9, borderRadius: 10, backgroundColor: '#263238' },
+  notificationText: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
+  settingsPanel: { marginHorizontal: 8, marginBottom: 8, padding: 10, borderRadius: 12, backgroundColor: '#1E2530', gap: 8 },
+  settingsTitle: { fontSize: 15, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' },
+  settingsButton: { padding: 10, borderRadius: 9, backgroundColor: '#2A3A4A' },
+  settingsButtonText: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
   partialTextBox: { marginHorizontal: 8, marginBottom: 4, padding: 8, borderRadius: 10 },
   partialTextValue: { fontSize: 14, textAlign: 'right', writingDirection: 'rtl' },
   errorTextValue: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl', color: '#FF6666' },
