@@ -10,7 +10,7 @@ FA_PIPER_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main/fa/fa_IR
 EN_PIPER_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium"
 TESS_URL="https://github.com/tesseract-ocr/tessdata/raw/main/fas.traineddata"
 PIPER_DATA_URL="https://github.com/rhasspy/piper/releases/download/2023.11.14-2/piper_linux_x86_64.tar.gz"
-ESPEAK_SRC_URL="https://github.com/espeak-ng/espeak-ng/archive/4870adf5b7d2d4f1f3e1f5f4f6e0c5d9b1a0d4c6.tar.gz"
+ESPEAK_SRC_URL="https://github.com/espeak-ng/espeak-ng/archive/refs/tags/1.52.0.tar.gz"
 
 download() {
   local url="$1"
