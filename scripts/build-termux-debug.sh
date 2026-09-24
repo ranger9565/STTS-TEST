@@ -13,7 +13,7 @@ fi
 
 bash scripts/setup-termux-aapt2.sh
 
-AAPT2_PATH="$HOME/android-sdk-tools-lzhiyong-35.0.2/build-tools/aapt2"
+AAPT2_PATH="$(command -v aapt2)"
 cd android
 ./gradlew assembleDebug --no-daemon \
   -PreactNativeArchitectures=arm64-v8a \
