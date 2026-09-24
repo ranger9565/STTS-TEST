@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(espeak_jni)
 
-# مسیر espeak-ng که به عنوان submodule در third_party قرار دارد
+# سورس eSpeak NG در زمان build داخل third_party آماده می‌شود؛ Git submodule لازم نیست.
 set(ESPEAK_ROOT ${CMAKE_SOURCE_DIR}/../../../third_party/espeak-ng)
 
 # کامپایل espeak-ng به عنوان static library
