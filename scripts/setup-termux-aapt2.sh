@@ -4,7 +4,7 @@ set -euo pipefail
 ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
 AAPT2_ROOT="$HOME/android-sdk-tools-lzhiyong-35.0.2"
 AAPT2="$AAPT2_ROOT/build-tools/aapt2"
-URL="https://github.com/lzhiyong/android-sdk-tools/releases/download/35.0.2/android-sdk-tools-static-aarch64.zip"
+URL="${AAPT2_URL:-https://github.com/lzhiyong/android-sdk-tools/releases/download/35.0.2/android-sdk-tools-static-aarch64.zip}"
 
 echo "Preparing Termux Android build toolchain..."
 
@@ -21,10 +21,27 @@ if [ ! -x "$AAPT2" ]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   echo "Downloading ARM64 AAPT2 from lzhiyong/android-sdk-tools..."
-  curl -fL --retry 3 --retry-delay 2 -o "$tmp/tools.zip" "$URL"
+  curl --http1.1 -fL --retry 5 --retry-delay 3 --connect-timeout 20 --max-time 180 -o "$tmp/tools.zip" "$URL"
   rm -rf "$AAPT2_ROOT"
   mkdir -p "$AAPT2_ROOT"
   unzip -q "$tmp/tools.zip" -d "$AAPT2_ROOT"
+  if [ ! -x "$AAPT2" ]; then
+    candidate="$(find "$AAPT2_ROOT" -type f -name aapt2 -print -quit)"
+    if [ -n "$candidate" ]; then
+      mkdir -p "$(dirname "$AAPT2")"
+      cp "$candidate" "$AAPT2"
+    fi
+  fi
+fi
+
+if [ ! -f "$ANDROID_HOME/platforms/android-36/android.jar" ]; then
+  echo "ERROR: Android SDK Platform 36 is missing: $ANDROID_HOME/platforms/android-36/android.jar" >&2
+  exit 1
+fi
+
+if [ ! -x "$AAPT2" ]; then
+  echo "ERROR: ARM64 AAPT2 was not installed at $AAPT2" >&2
+  exit 1
 fi
 
 chmod +x "$AAPT2"
