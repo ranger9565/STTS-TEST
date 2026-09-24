@@ -1,13 +1,24 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(espeak_jni)
 
-# سورس eSpeak NG در زمان build داخل third_party آماده می‌شود؛ Git submodule لازم نیست.
+# eSpeak NG is built from source during the native Android build.
+# No Git submodule is required; EAS downloads the source into third_party.
 set(ESPEAK_ROOT ${CMAKE_SOURCE_DIR}/../../../third_party/espeak-ng)
 
-# کامپایل espeak-ng به عنوان static library
+# Piper only needs eSpeak's phonemization engine. Disable desktop/data-generation
+# features that require executing a host-built eSpeak binary during an Android
+# cross-compile.
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(COMPILE_INTONATIONS OFF CACHE BOOL "" FORCE)
+set(ENABLE_TESTS OFF CACHE BOOL "" FORCE)
+set(USE_MBROLA OFF CACHE BOOL "" FORCE)
+set(USE_LIBSONIC OFF CACHE BOOL "" FORCE)
+set(USE_SPEECHPLAYER OFF CACHE BOOL "" FORCE)
+set(USE_ASYNC OFF CACHE BOOL "" FORCE)
+
 add_subdirectory(${ESPEAK_ROOT} espeak-ng-build EXCLUDE_FROM_ALL)
 
-# ماژول JNI اصلی
+# JNI wrapper used by Piper for text -> phoneme conversion.
 add_library(espeak_jni SHARED espeak_jni.cpp)
 
 target_include_directories(espeak_jni PRIVATE
