@@ -194,7 +194,7 @@ class OverlayService : Service() {
         }
     }
 
-    private fun startForegroundWithNotification() {
+    private fun startForegroundWithNotification(includeMicrophone: Boolean = activeModes.contains("stt")) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
@@ -218,7 +218,7 @@ class OverlayService : Service() {
             // ضبط میکروفون وقتی اپ پشت اپ دیگری است فقط با سرویس foreground از نوع
             // microphone مجاز است (Android 11+). نوع microphone فقط وقتی اضافه می‌شود
             // که RECORD_AUDIO داده شده باشد، وگرنه Android 14 خطای امنیتی می‌دهد.
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && hasMicPermission()) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && includeMicrophone && hasMicPermission()) {
                 try {
                     startForeground(
                         NOTIFICATION_ID,
@@ -243,6 +243,11 @@ class OverlayService : Service() {
     /** حباب فعال (مثلاً در حال ضبط) قرمز می‌شود تا کاربر بداند میکروفون روشن است. */
     private fun setBubbleActive(mode: String, active: Boolean) {
         if (active) activeModes.add(mode) else activeModes.remove(mode)
+        // نوع microphone فقط هنگام فعال بودن STT به foreground service اضافه می‌شود.
+        // حباب‌های TTS/OCR به تنهایی فقط specialUse هستند.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForegroundWithNotification(activeModes.contains("stt"))
+        }
         bubbles[mode]?.let { state ->
             state.view.background =
                 circleDrawable(if (active) COLOR_ACTIVE else COLOR_IDLE)
