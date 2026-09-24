@@ -7,6 +7,8 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.Manifest
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
@@ -38,6 +40,28 @@ class OverlayService : Service() {
         const val ACTION_STOP_MODE = "expo.modules.overlay.STOP_MODE"
         const val ACTION_SET_VISIBILITY = "expo.modules.overlay.SET_VISIBILITY"
         const val EXTRA_VISIBLE = "visible"
+        const val ACTION_SET_ACTIVE = "expo.modules.overlay.SET_ACTIVE"
+        const val EXTRA_ACTIVE = "active"
+        private const val COLOR_IDLE = 0xFF1E2530.toInt()
+        private const val COLOR_ACTIVE = 0xFFD32F2F.toInt()
+
+        /**
+         * اگر JS زنده باشد، تپ روی حباب را (بدون جلو آوردن اپ) به آن می‌دهد.
+         * مقدار برگشتی true یعنی JS تپ را مدیریت کرد؛ در غیر این صورت
+         * سرویس مثل قبل اپ را باز می‌کند. (توسط OverlayModule تنظیم می‌شود)
+         */
+        @Volatile
+        var tapHandler: ((String) -> Boolean)? = null
+
+        fun setActive(context: Context, mode: String, active: Boolean) {
+            val intent = Intent(context, OverlayService::class.java).apply {
+                action = ACTION_SET_ACTIVE
+                putExtra(EXTRA_MODE, mode)
+                putExtra(EXTRA_ACTIVE, active)
+            }
+            intent.setPackage(context.packageName)
+            context.sendBroadcast(intent)
+        }
         private const val CHANNEL_ID = "stts_overlay_channel"
         private const val NOTIFICATION_ID = 4201
         private const val HOLD_DURATION_MS = 3000L
@@ -95,6 +119,7 @@ class OverlayService : Service() {
 
     private lateinit var windowManager: WindowManager
     private val bubbles = mutableMapOf<String, BubbleState>()
+    private val activeModes = mutableSetOf<String>()
     private val handler = Handler(Looper.getMainLooper())
     private val stopModeReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -109,6 +134,11 @@ class OverlayService : Service() {
                     normalizeMode(mode)?.let {
                         if (visible) showBubble(it) else hideBubble(it)
                     }
+                }
+                ACTION_SET_ACTIVE -> {
+                    val mode = intent.getStringExtra(EXTRA_MODE) ?: return
+                    val active = intent.getBooleanExtra(EXTRA_ACTIVE, false)
+                    normalizeMode(mode)?.let { setBubbleActive(it, active) }
                 }
                 else -> return
             }
@@ -129,6 +159,7 @@ class OverlayService : Service() {
             IntentFilter().apply {
                 addAction(ACTION_STOP_MODE)
                 addAction(ACTION_SET_VISIBILITY)
+                addAction(ACTION_SET_ACTIVE)
             },
             ContextCompat.RECEIVER_NOT_EXPORTED,
         )
@@ -183,13 +214,38 @@ class OverlayService : Service() {
             .build()
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
-            )
+            val specialUse = ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+            // ضبط میکروفون وقتی اپ پشت اپ دیگری است فقط با سرویس foreground از نوع
+            // microphone مجاز است (Android 11+). نوع microphone فقط وقتی اضافه می‌شود
+            // که RECORD_AUDIO داده شده باشد، وگرنه Android 14 خطای امنیتی می‌دهد.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && hasMicPermission()) {
+                try {
+                    startForeground(
+                        NOTIFICATION_ID,
+                        notification,
+                        specialUse or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
+                    )
+                    return
+                } catch (_: RuntimeException) {
+                    // سیستم نوع microphone را در این لحظه نپذیرفت؛ به حالت قبلی برمی‌گردیم.
+                }
+            }
+            startForeground(NOTIFICATION_ID, notification, specialUse)
         } else {
             startForeground(NOTIFICATION_ID, notification)
+        }
+    }
+
+    private fun hasMicPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+            PackageManager.PERMISSION_GRANTED
+
+    /** حباب فعال (مثلاً در حال ضبط) قرمز می‌شود تا کاربر بداند میکروفون روشن است. */
+    private fun setBubbleActive(mode: String, active: Boolean) {
+        if (active) activeModes.add(mode) else activeModes.remove(mode)
+        bubbles[mode]?.let { state ->
+            state.view.background =
+                circleDrawable(if (active) COLOR_ACTIVE else COLOR_IDLE)
         }
     }
 
@@ -220,7 +276,9 @@ class OverlayService : Service() {
             text = icon
             textSize = 24f
             gravity = Gravity.CENTER
-            background = circleDrawable(0xFF1E2530.toInt())
+            background = circleDrawable(
+                if (activeModes.contains(mode)) COLOR_ACTIVE else COLOR_IDLE,
+            )
         }
 
         val params = WindowManager.LayoutParams(
@@ -412,6 +470,10 @@ class OverlayService : Service() {
     }
 
     private fun onBubbleTapped(mode: String) {
+        // اگر JS تپ را بگیرد (مثلاً شروع/توقف ضبط)، اپ جلو نمی‌آید و
+        // اپ مقصد فوکوس ورودی را نگه می‌دارد تا تایپ در آن انجام شود.
+        if (tapHandler?.invoke(mode) == true) return
+
         val route = when (mode) {
             "stt" -> "openMic"
             "tts" -> "openTts"

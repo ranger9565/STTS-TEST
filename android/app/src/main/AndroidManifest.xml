@@ -2,6 +2,7 @@
   <uses-permission android:name="android.permission.CAMERA"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
@@ -19,7 +20,7 @@
       <intent-filter><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="stts"/></intent-filter>
       <intent-filter><action android:name="android.intent.action.PROCESS_TEXT"/><category android:name="android.intent.category.DEFAULT"/><data android:mimeType="text/plain"/></intent-filter>
     </activity>
-    <service android:name="expo.modules.overlay.OverlayService" android:exported="false" android:foregroundServiceType="specialUse"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="floating accessibility bubble for speech-to-text/text-to-speech/OCR tool"/></service>
+    <service android:name="expo.modules.overlay.OverlayService" android:exported="false" android:foregroundServiceType="specialUse|microphone"><property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="floating accessibility bubble for speech-to-text/text-to-speech/OCR tool"/></service>
     <service android:name="expo.modules.typing.TypingAccessibilityService" android:exported="true" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"><intent-filter><action android:name="android.accessibilityservice.AccessibilityService"/></intent-filter><meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_service_config"/></service>
   </application>
 </manifest>

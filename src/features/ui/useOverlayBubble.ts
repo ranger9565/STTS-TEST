@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, PermissionsAndroid } from 'react-native';
+import { ensureMicPermission } from '../../shared/services/mic-permission';
 import {
   hasOverlayPermission,
   requestOverlayPermission,
@@ -53,6 +54,12 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
 
       pendingStartRef.current.add(mode);
       try {
+        // سرویس حباب STT باید با نوع «microphone» شروع شود تا ضبط وقتی اپ در
+        // پس‌زمینه است کار کند؛ این نوع فقط با مجوز RECORD_AUDIO اضافه می‌شود.
+        // پنجره مجوز فقط وقتی اپ جلوست قابل نمایش است.
+        if (mode === 'stt' && appState.current === 'active') {
+          await ensureMicPermission(PermissionsAndroid).catch(() => 'denied');
+        }
         await startOverlayBubble(mode, appState.current === 'background' || appState.current === 'inactive');
         startedModesRef.current.add(mode);
       } catch {
@@ -135,12 +142,9 @@ export function useOverlayBubble(bubbles: BubbleVisibility): void {
     };
   }, []);
 
+  // سرویس foreground باید وقتی اپ جلوست شروع شود (نه لحظه‌ی رفتن به پس‌زمینه)؛
+  // فقط نمایش حباب به پس‌زمینه بودن اپ وابسته است (داخل reconcile).
   useEffect(() => {
-    if (
-      appState.current === 'background' ||
-      appState.current === 'inactive'
-    ) {
-      reconcileRef.current();
-    }
+    reconcileRef.current();
   }, [bubbles]);
 }

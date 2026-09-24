@@ -8,6 +8,7 @@ import { OcrPanel } from './OcrPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel, HistoryItem } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
+import { useSttBubbleTap } from './useSttBubbleTap';
 import { useStt } from '../stt/useStt';
 import { useTts } from '../tts/useTts';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
@@ -26,6 +27,7 @@ export function MainPanel() {
   const stt = useStt();
   const tts = useTts();
   const isListening = stt.session.state === 'listening';
+  useSttBubbleTap(stt);
 
   useEffect(() => {
     initHistoryDb();

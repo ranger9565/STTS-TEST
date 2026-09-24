@@ -19,6 +19,24 @@ class OverlayModule : Module() {
     override fun definition() = ModuleDefinition {
         Name("OverlayModule")
 
+        // تپ روی حباب STT بدون جلو آوردن اپ به JS داده می‌شود
+        Events("onBubbleTap")
+
+        OnCreate {
+            OverlayService.tapHandler = { mode ->
+                if (mode == "stt") {
+                    sendEvent("onBubbleTap", mapOf("mode" to mode))
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+
+        OnDestroy {
+            OverlayService.tapHandler = null
+        }
+
         Function("hasOverlayPermission") {
             hasOverlayPermission()
         }
@@ -49,6 +67,12 @@ class OverlayModule : Module() {
         AsyncFunction("setBubbleVisibility") { mode: String, visible: Boolean ->
             val context = appContext.reactContext ?: return@AsyncFunction null
             OverlayService.setVisibility(context, mode, visible)
+            null
+        }
+
+        AsyncFunction("setBubbleActive") { mode: String, active: Boolean ->
+            val context = appContext.reactContext ?: return@AsyncFunction null
+            OverlayService.setActive(context, mode, active)
             null
         }
 
