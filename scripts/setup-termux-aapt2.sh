@@ -2,36 +2,23 @@
 set -euo pipefail
 
 ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
-AAPT2_ROOT="$HOME/android-sdk-tools-lzhiyong-35.0.2"
-AAPT2="$AAPT2_ROOT/build-tools/aapt2"
-URL="${AAPT2_URL:-https://github.com/lzhiyong/android-sdk-tools/releases/download/35.0.2/android-sdk-tools-static-aarch64.zip}"
 
 echo "Preparing Termux Android build toolchain..."
 
-# Keep the old x86_64 NDK outside the SDK tree so sdkmanager stops reporting
-# an inconsistent package location.
-OLD_NDK="$ANDROID_HOME/ndk/27.1.12297006.google-x86_64"
-if [ -d "$OLD_NDK" ]; then
-  mkdir -p "$HOME/android-sdk-backup/ndk"
-  mv "$OLD_NDK" "$HOME/android-sdk-backup/ndk/27.1.12297006.google-x86_64"
-  echo "Moved old x86_64 NDK backup outside SDK metadata."
+# The Google Play build of Termux rejects static ET_EXEC Linux/ARM64
+# binaries with: unexpected e_type: 2. Therefore do not download aapt2
+# from generic Linux/ARM64 releases. Use Termux's native Android/Bionic
+# aapt2 package instead.
+if ! command -v aapt2 >/dev/null 2>&1; then
+  echo "Termux-native aapt2 is not installed. Installing package aapt2..."
+  pkg install -y aapt2
 fi
 
+AAPT2="$(command -v aapt2)"
+
 if [ ! -x "$AAPT2" ]; then
-  tmp="$(mktemp -d)"
-  trap 'rm -rf "$tmp"' EXIT
-  echo "Downloading ARM64 AAPT2 from lzhiyong/android-sdk-tools..."
-  curl --http1.1 -fL --retry 5 --retry-delay 3 --connect-timeout 20 --max-time 180 -o "$tmp/tools.zip" "$URL"
-  rm -rf "$AAPT2_ROOT"
-  mkdir -p "$AAPT2_ROOT"
-  unzip -q "$tmp/tools.zip" -d "$AAPT2_ROOT"
-  if [ ! -x "$AAPT2" ]; then
-    candidate="$(find "$AAPT2_ROOT" -type f -name aapt2 -print -quit)"
-    if [ -n "$candidate" ]; then
-      mkdir -p "$(dirname "$AAPT2")"
-      cp "$candidate" "$AAPT2"
-    fi
-  fi
+  echo "ERROR: Termux aapt2 is not executable: $AAPT2" >&2
+  exit 1
 fi
 
 if [ ! -f "$ANDROID_HOME/platforms/android-36/android.jar" ]; then
@@ -39,15 +26,9 @@ if [ ! -f "$ANDROID_HOME/platforms/android-36/android.jar" ]; then
   exit 1
 fi
 
-if [ ! -x "$AAPT2" ]; then
-  echo "ERROR: ARM64 AAPT2 was not installed at $AAPT2" >&2
-  exit 1
-fi
-
-chmod +x "$AAPT2"
+echo "Using Termux-native AAPT2: $AAPT2"
 "$AAPT2" version
 
-test -f "$ANDROID_HOME/platforms/android-36/android.jar"
 echo "Android SDK Platform 36: OK"
 echo "Termux ARM64 AAPT2: OK"
 echo "Build toolchain preparation complete."
