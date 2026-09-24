@@ -34,3 +34,6 @@ ios/
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+# Native module build outputs / generated third-party source
+modules/*/android/build/
+modules/piper-module/android/third_party/
