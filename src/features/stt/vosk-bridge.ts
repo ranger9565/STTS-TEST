@@ -8,6 +8,11 @@
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { PermissionsAndroid } from 'react-native';
+import {
+  ensureMicPermission,
+  micPermissionErrorMessage,
+} from '../../shared/services/mic-permission';
 import {
   voskInit,
   voskStart,
@@ -61,6 +66,12 @@ export async function startRecording(
   }
   if (isListening) {
     throw new Error('ضبط در حال انجام است؛ ابتدا stopRecording() فراخوانی کنید');
+  }
+
+  // مجوز میکروفون باید قبل از شروع ضبط در زمان اجرا گرفته شود (Android 6+)
+  const micStatus = await ensureMicPermission(PermissionsAndroid);
+  if (micStatus !== 'granted') {
+    throw new Error(micPermissionErrorMessage(micStatus));
   }
 
   activeSubscriptions = [
