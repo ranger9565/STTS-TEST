@@ -4,7 +4,7 @@ set -euo pipefail
 ANDROID_HOME="${ANDROID_HOME:-$HOME/android-sdk}"
 NDK_VERSION="27.1.12297006"
 TARGET="$ANDROID_HOME/ndk/$NDK_VERSION"
-URL="https://github.com/lzhiyong/termux-ndk/releases/download/android-ndk/android-ndk-r27b-aarch64.zip"
+URL="https://github.com/MrIkso/AndroidIDE-NDK/releases/download/ndk/android-ndk-r27b-aarch64.zip"
 
 if [ "$(uname -m)" != "aarch64" ]; then
   echo "This Termux setup requires an aarch64 Android device."
