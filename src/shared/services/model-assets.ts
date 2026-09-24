@@ -49,7 +49,9 @@ export async function ensureModelsReady(): Promise<ModelPaths> {
     `${paths.piperModelsDir}/fa_IR-gyro-medium.onnx.json`,
     `${paths.piperModelsDir}/en_US-lessac-medium.onnx`,
     `${paths.piperModelsDir}/en_US-lessac-medium.onnx.json`,
-    `${paths.espeakDataDir}/phsource`,
+    `${paths.espeakDataDir}/phondata`,
+    `${paths.espeakDataDir}/phonindex`,
+    `${paths.espeakDataDir}/phontab`,
     `${paths.tessDataPath}tessdata/fas.traineddata`,
   ];
 
