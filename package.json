@@ -11,8 +11,7 @@
     "test": "jest",
     "build:apk": "eas build --platform android --profile preview",
     "ios": "expo run:ios",
-    "postinstall": "node scripts/patch-java21.js",
-    "eas-build-pre-install": "bash scripts/eas-download-models.sh"
+    "postinstall": "node scripts/patch-java21.js"
   },
   "dependencies": {
     "expo": "~54.0.37",
