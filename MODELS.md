@@ -75,9 +75,8 @@ npm install
 # ۲. تولید کد native با expo prebuild
 npx expo prebuild --platform android
 
-# ۳. espeak-ng را به عنوان submodule اضافه کن (برای Piper)
-git submodule add https://github.com/espeak-ng/espeak-ng \
-  modules/piper-module/android/third_party/espeak-ng
+# ۳. در EAS، اسکریپت build به‌صورت خودکار مدل‌ها و سورس eSpeak NG را آماده می‌کند.
+#    نیازی به git submodule نیست.
 
 # ۴. build APK از طریق EAS
 eas build --platform android --profile preview
