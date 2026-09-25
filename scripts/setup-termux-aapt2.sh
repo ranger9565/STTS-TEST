@@ -26,7 +26,7 @@ if [ ! -x "$AAPT2" ]; then
   curl -fL --retry 3 --connect-timeout 20 -o "$tmp" "$AAPT2_URL"
   chmod 755 "$tmp"
 
-  if ! file "$tmp" | grep -Eq 'ARM aarch64|ARM64'; then
+  if ! file "$tmp" | grep -Eqi 'arm64|aarch64'; then
     echo "ERROR: Downloaded AAPT2 is not an ARM64 executable." >&2
     file "$tmp" >&2 || true
     rm -f "$tmp"
