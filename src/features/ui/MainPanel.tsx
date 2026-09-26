@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
 import { MicPanel } from './MicPanel';
-import { OcrPanel } from './OcrPanel';
 import { AudioBar } from './AudioBar';
 import { HistoryPanel, HistoryItem } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
@@ -16,15 +15,15 @@ import { initHistoryDb, getRecentHistory } from '../../shared/services/history-s
 
 I18nManager.forceRTL(true);
 
-const FEATURE_LABELS: Record<'tts' | 'stt' | 'ocr' | 'settings', string> = {
-  tts: 'متن به صوت', stt: 'صوت به متن', ocr: 'اسکنر', settings: 'تنظیمات',
+const FEATURE_LABELS: Record<'tts' | 'stt', string> = {
+  tts: 'متن به صوت',
+  stt: 'صوت به متن',
 };
 
 export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [externalTtsText, setExternalTtsText] = useState<string | null>(null);
-  const [notificationVisible, setNotificationVisible] = useState(false);
   const stt = useStt();
   const tts = useTts();
   const isListening = stt.session.state === 'listening';
@@ -103,27 +102,15 @@ export function MainPanel() {
         ><Text style={styles.topIcon}>✕</Text></Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="اعلان‌ها"
-          onPress={() => setNotificationVisible((visible) => !visible)}
-        ><Text style={styles.topIcon}>🔔</Text></Pressable>
-        <Pressable
-          accessibilityRole="button"
           accessibilityLabel="تنظیمات و گزینه‌ها"
           onPress={() => dispatch({ type: 'SELECT_FEATURE', feature: 'settings' })}
         ><Text style={styles.topIcon}>⋮</Text></Pressable>
       </View>
 
-      {notificationVisible && (
-        <View style={styles.notificationBox}>
-          <Text style={styles.notificationText}>
-            {isListening ? 'میکروفون STT فعال است.' : tts.status === 'playing' ? 'پخش TTS فعال است.' : 'STTS آماده است.'}
-          </Text>
-        </View>
-      )}
-
       {state.activeFeature === 'settings' && (
         <View style={styles.settingsPanel}>
-          <Text style={styles.settingsTitle}>تنظیمات عملیاتی STTS</Text>
+          <Text style={styles.settingsTitle}>تنظیمات STTS</Text>
+          <Text style={styles.settingsHint}>گزینه‌های اصلی که هنوز به سرویس واقعی متصل نشده‌اند اینجا نمایش داده نمی‌شوند؛ STTS فقط کنترل‌های عملیاتی فعال را نشان می‌دهد.</Text>
           <Pressable style={styles.settingsButton} onPress={openAccessibilitySettings}>
             <Text style={styles.settingsButtonText}>تنظیم سرویس دسترس‌پذیری تایپ</Text>
           </Pressable>
@@ -153,14 +140,14 @@ export function MainPanel() {
           }}
         />
         <View style={styles.buttonColumn}>
-          {(['tts', 'stt', 'ocr', 'settings'] as const).map((feature) => (
+          {(['tts', 'stt'] as const).map((feature) => (
             <Pressable
               key={feature}
               accessibilityRole="button"
               accessibilityLabel={FEATURE_LABELS[feature]}
               onPress={() => {
                 dispatch({ type: 'SELECT_FEATURE', feature });
-                if (feature !== 'settings') dispatch({ type: 'TOGGLE_BUBBLE', mode: feature });
+                dispatch({ type: 'TOGGLE_BUBBLE', mode: feature });
               }}
               style={[styles.featureButton, state.activeFeature === feature && styles.featureButtonActive]}
             >
@@ -192,17 +179,6 @@ export function MainPanel() {
       />
 
 
-
-      {state.activeFeature === 'ocr' && (
-        <OcrPanel
-          onClose={() => dispatch({ type: 'SELECT_FEATURE', feature: null })}
-          onReadResult={(text) => {
-            setExternalTtsText(text);
-            dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
-            tts.speak(text).catch(() => {});
-          }}
-        />
-      )}
 
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
@@ -236,10 +212,9 @@ const styles = StyleSheet.create({
   featureButton: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   featureButtonActive: { opacity: 0.7 },
   featureLabel: { fontSize: 11, textAlign: 'center' },
-  notificationBox: { marginHorizontal: 8, marginBottom: 6, padding: 9, borderRadius: 10, backgroundColor: '#263238' },
-  notificationText: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
   settingsPanel: { marginHorizontal: 8, marginBottom: 8, padding: 10, borderRadius: 12, backgroundColor: '#1E2530', gap: 8 },
   settingsTitle: { fontSize: 15, fontWeight: '600', textAlign: 'right', writingDirection: 'rtl' },
+  settingsHint: { fontSize: 11, lineHeight: 18, textAlign: 'right', writingDirection: 'rtl', opacity: 0.8 },
   settingsButton: { padding: 10, borderRadius: 9, backgroundColor: '#2A3A4A' },
   settingsButtonText: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
   partialTextBox: { marginHorizontal: 8, marginBottom: 4, padding: 8, borderRadius: 10 },
