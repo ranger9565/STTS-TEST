@@ -13,7 +13,7 @@ import { useSttBubbleTap } from './useSttBubbleTap';
 import { useStt } from '../stt/useStt';
 import { VOSK_EN_MODEL_PATH, VOSK_FA_MODEL_PATH } from '../stt/vosk-bridge';
 import { useTts } from '../tts/useTts';
-import { exportLastAudio } from '../tts/piper-bridge';
+import { exportLastAudio, hasLastAudio } from '../tts/piper-bridge';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
 import { initHistoryDb, getRecentHistory } from '../../shared/services/history-store';
 
@@ -193,7 +193,7 @@ export function MainPanel() {
         status={tts.status}
         onPlay={handlePlaySelectedText}
         onStop={() => tts.stop().catch(() => {})}
-        onSave={handleSaveAudio}
+        onSave={hasLastAudio() ? handleSaveAudio : undefined}
       />
 
 
