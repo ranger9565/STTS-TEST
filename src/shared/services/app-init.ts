@@ -6,16 +6,10 @@
  */
 
 import { ensureModelsReady } from './model-assets';
-import { initVosk } from '../../features/stt/vosk-bridge';
-import { initPiper } from '../../features/tts/piper-bridge';
-import { initTesseract } from '../../features/ocr/tesseract-bridge';
 
 export type InitStatus =
   | { phase: 'idle' }
   | { phase: 'extracting_models' }
-  | { phase: 'loading_vosk' }
-  | { phase: 'loading_piper' }
-  | { phase: 'loading_tesseract' }
   | { phase: 'ready' }
   | { phase: 'error'; error: Error };
 
@@ -33,24 +27,8 @@ export async function initializeApp(
     report({ phase: 'extracting_models' });
     const paths = await ensureModelsReady();
 
-    // ۲. Vosk STT
-    report({ phase: 'loading_vosk' });
-    await initVosk({ modelPath: paths.voskModelPath });
-
-    // ۳. Piper TTS (هر دو مدل fa و en)
-    report({ phase: 'loading_piper' });
-    await initPiper({
-      modelsDir: paths.piperModelsDir,
-      espeakDataDir: paths.espeakDataDir,
-    });
-
-    // ۴. Tesseract OCR
-    report({ phase: 'loading_tesseract' });
-    await initTesseract({
-      tessDataPath: paths.tessDataPath,
-      language: 'fas',
-    });
-
+    // موتورهای native توسط hook همان قابلیت مقداردهی می‌شوند؛
+    // اینجا فقط آماده‌بودن مدل‌ها و assets را تضمین می‌کنیم.
     report({ phase: 'ready' });
   } catch (err) {
     const error = err instanceof Error ? err : new Error(String(err));
