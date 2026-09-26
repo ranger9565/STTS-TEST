@@ -23,7 +23,7 @@ download() {
 mkdir -p "$ASSETS/vosk" "$ASSETS/piper" "$ASSETS/tessdata"
 mkdir -p "$(dirname "$ESPEAK_SRC")"
 
-if [ ! -f "$ASSETS/vosk/vosk-model-small-fa-0.42/conf/model.conf" ]; then
+if [ ! -f "$ASSETS/vosk/vosk-model-small-fa-0.42/conf/model.conf" ] || [ ! -f "$ASSETS/vosk/vosk-model-small-en-us-0.15/conf/model.conf" ]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
   download "$VOSK_FA_URL" "$tmp/vosk-fa.zip"
