@@ -26,7 +26,6 @@ const FEATURE_LABELS: Record<'tts' | 'stt', string> = {
 export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [externalTtsText, setExternalTtsText] = useState<string | null>(null);
   const [ttsText, setTtsText] = useState('');
   const [sttLanguage, setSttLanguage] = useState<'fa' | 'en'>('fa');
   const stt = useStt(sttLanguage === 'fa' ? VOSK_FA_MODEL_PATH : VOSK_EN_MODEL_PATH);
@@ -69,7 +68,6 @@ export function MainPanel() {
       if (route === 'read') {
         const text = typeof queryParams?.text === 'string' ? queryParams.text : null;
         if (!text?.trim()) return;
-        setExternalTtsText(text);
         setTtsText(text);
         dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
         tts.speak(text).catch(() => {});
@@ -84,7 +82,7 @@ export function MainPanel() {
   const selectedHistoryItem = historyItems.find(
     (item) => item.id === state.selectedHistoryItemId,
   );
-  const selectedText = ttsText.trim() || externalTtsText || selectedHistoryItem?.text || null;
+  const selectedText = ttsText.trim() || null;
 
   const handleToggleMic = () => {
     if (isListening) stt.stop().catch(() => {});
@@ -96,7 +94,6 @@ export function MainPanel() {
       const result = await DocumentPicker.getDocumentAsync({ type: 'text/*', copyToCacheDirectory: true, multiple: false });
       if (result.canceled || !result.assets?.[0]) return;
       const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
-      setExternalTtsText(null);
       setTtsText(content);
       dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
     } catch (err) {
@@ -172,7 +169,7 @@ export function MainPanel() {
           </View>
           <TextInput
             value={ttsText}
-            onChangeText={(value) => { setExternalTtsText(null); setTtsText(value); }}
+            onChangeText={setTtsText}
             multiline
             textAlign="right"
             writingDirection="rtl"
@@ -187,7 +184,6 @@ export function MainPanel() {
           items={historyItems}
           selectedItemId={state.selectedHistoryItemId}
           onSelectItem={(id) => {
-            setExternalTtsText(null);
             setTtsText(historyItems.find((item) => item.id === id)?.text ?? '');
             dispatch({ type: 'SELECT_HISTORY_ITEM', itemId: id });
           }}
