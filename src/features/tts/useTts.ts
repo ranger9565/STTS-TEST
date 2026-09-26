@@ -15,6 +15,7 @@ export interface UseTtsResult {
   speak: (text: string) => Promise<void>;
   stop: () => Promise<void>;
   error: Error | null;
+  hasAudioFor: (text: string) => boolean;
 }
 
 export function useTts(
@@ -23,6 +24,7 @@ export function useTts(
 ): UseTtsResult {
   const [status, setStatus] = useState<TtsStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
+  const [lastAudioText, setLastAudioText] = useState<string | null>(null);
   const initializedRef = useRef(false);
   const initPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -68,6 +70,7 @@ export function useTts(
       // transition back to idle when playback actually finishes.
       setStatus('playing');
       await speak(text, () => setStatus('idle'));
+      setLastAudioText(text.trim());
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       setError(e);
@@ -81,5 +84,10 @@ export function useTts(
     setStatus('idle');
   }, []);
 
-  return { status, speak: speakText, stop, error };
+  const hasAudioFor = useCallback(
+    (text: string) => Boolean(lastAudioText && text.trim() === lastAudioText),
+    [lastAudioText],
+  );
+
+  return { status, speak: speakText, stop, error, hasAudioFor };
 }
