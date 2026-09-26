@@ -201,7 +201,7 @@ export function MainPanel() {
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
           isListening={isListening}
-          languageLabel={sttLanguage === "fa" ? "فا" : "EN"}
+          languageLabel={sttLanguage === "fa" ? "🇮🇷" : "🇺🇸"}
           onClose={() => {
             if (isListening) stt.stop().catch(() => {});
             dispatch({ type: 'CLOSE_MIC_PANEL' });
