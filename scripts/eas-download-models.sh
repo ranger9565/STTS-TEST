@@ -5,7 +5,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ASSETS="$ROOT/android/app/src/main/assets"
 ESPEAK_SRC="$ROOT/modules/piper-module/android/third_party/espeak-ng"
 
-VOSK_URL="https://alphacephei.com/vosk/models/vosk-model-small-fa-0.42.zip"
+VOSK_FA_URL="https://alphacephei.com/vosk/models/vosk-model-small-fa-0.42.zip"
+VOSK_EN_URL="https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip"
 FA_PIPER_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main/fa/fa_IR/gyro/medium"
 EN_PIPER_BASE="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium"
 TESS_URL="https://github.com/tesseract-ocr/tessdata/raw/main/fas.traineddata"
@@ -25,8 +26,10 @@ mkdir -p "$(dirname "$ESPEAK_SRC")"
 if [ ! -f "$ASSETS/vosk/vosk-model-small-fa-0.42/conf/model.conf" ]; then
   tmp="$(mktemp -d)"
   trap 'rm -rf "$tmp"' EXIT
-  download "$VOSK_URL" "$tmp/vosk.zip"
-  unzip -q "$tmp/vosk.zip" -d "$ASSETS/vosk"
+  download "$VOSK_FA_URL" "$tmp/vosk-fa.zip"
+  unzip -q "$tmp/vosk-fa.zip" -d "$ASSETS/vosk"
+  download "$VOSK_EN_URL" "$tmp/vosk-en.zip"
+  unzip -q "$tmp/vosk-en.zip" -d "$ASSETS/vosk"
 fi
 
 download_if_missing() {
