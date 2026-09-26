@@ -1,5 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react';
-import { Alert, View, Text, Pressable, StyleSheet, I18nManager } from 'react-native';
+import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
@@ -12,8 +12,6 @@ import { useStt } from '../stt/useStt';
 import { useTts } from '../tts/useTts';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
 import { initHistoryDb, getRecentHistory } from '../../shared/services/history-store';
-
-I18nManager.forceRTL(true);
 
 const FEATURE_LABELS: Record<'tts' | 'stt', string> = {
   tts: 'متن به صوت',
@@ -92,6 +90,7 @@ export function MainPanel() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.topBar}>
+        <Text style={styles.appTitle}>STTS</Text>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="بستن پنل"
@@ -104,7 +103,7 @@ export function MainPanel() {
           accessibilityRole="button"
           accessibilityLabel="تنظیمات و گزینه‌ها"
           onPress={() => dispatch({ type: 'SELECT_FEATURE', feature: 'settings' })}
-        ><Text style={styles.topIcon}>⋮</Text></Pressable>
+        ><Text style={styles.topIcon}>☰</Text></Pressable>
       </View>
 
       {state.activeFeature === 'settings' && (
@@ -205,8 +204,9 @@ export function MainPanel() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, writingDirection: 'rtl' },
-  topBar: { flexDirection: 'row-reverse', justifyContent: 'flex-end', gap: 12, padding: 8 },
-  topIcon: { fontSize: 18 },
+  topBar: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, padding: 8 },
+  appTitle: { flex: 1, fontSize: 18, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
+  topIcon: { fontSize: 20, minWidth: 28, textAlign: 'center' },
   mainRow: { flex: 1, flexDirection: 'row-reverse', paddingHorizontal: 8, gap: 8 },
   buttonColumn: { width: 72, gap: 8 },
   featureButton: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
