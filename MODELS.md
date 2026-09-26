@@ -32,6 +32,7 @@ android/app/src/main/assets/
 
 | مدل | لینک | حجم |
 |-----|------|-----|
+| **Vosk انگلیسی** | https://alphacephei.com/vosk/models/vosk-model-small-en-us-0.15.zip | ~40MB |
 | **Vosk فارسی** | https://alphacephei.com/vosk/models/vosk-model-small-fa-0.42.zip | ~53MB |
 | **Piper fa_IR-gyro-medium** | https://huggingface.co/rhasspy/piper-voices/tree/main/fa/fa_IR/gyro/medium | ~63MB |
 | **Piper en_US-lessac-medium** | https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/lessac/medium | ~63MB |
