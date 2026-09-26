@@ -89,6 +89,7 @@ export async function initPiper(config: PiperBridgeConfig): Promise<void> {
 export async function speak(
   text: string,
   onFinished?: () => void,
+  onProgress?: (positionMs: number, durationMs: number) => void,
 ): Promise<void> {
   if (!isInitialized) {
     throw new Error('Piper bridge not initialized — call initPiper() first');
@@ -130,7 +131,7 @@ export async function speak(
   lastAudioPath = outPath;
 
   // پخش از طریق expo-av
-  await playWavFile(outPath, onFinished);
+  await playWavFile(outPath, onFinished, onProgress);
 }
 
 /** ذخیره خروجی صوتی آخرین synthesis به عنوان فایل قابل اشتراک‌گذاری */
@@ -177,6 +178,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 async function playWavFile(
   filePath: string,
   onFinished?: () => void,
+  onProgress?: (positionMs: number, durationMs: number) => void,
 ): Promise<void> {
   // توقف پخش قبلی
   if (currentSound) {
@@ -188,7 +190,10 @@ async function playWavFile(
     { uri: filePath },
     { shouldPlay: true },
     (status) => {
-      if (status.isLoaded && status.didJustFinish) {
+      if (status.isLoaded) {
+      onProgress?.(status.positionMillis, status.durationMillis ?? 0);
+    }
+    if (status.isLoaded && status.didJustFinish) {
         currentSound?.unloadAsync().catch(() => {});
         currentSound = null;
         onFinished?.();
