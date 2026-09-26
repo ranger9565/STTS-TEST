@@ -1,7 +1,9 @@
 import React, { useEffect, useReducer, useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
 import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
@@ -11,6 +13,7 @@ import { useSttBubbleTap } from './useSttBubbleTap';
 import { useStt } from '../stt/useStt';
 import { VOSK_EN_MODEL_PATH, VOSK_FA_MODEL_PATH } from '../stt/vosk-bridge';
 import { useTts } from '../tts/useTts';
+import { exportLastAudio } from '../tts/piper-bridge';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
 import { initHistoryDb, getRecentHistory } from '../../shared/services/history-store';
 
@@ -87,6 +90,19 @@ export function MainPanel() {
 
   const handlePlaySelectedText = () => {
     if (selectedText?.trim()) tts.speak(selectedText).catch(() => {});
+  };
+
+  const handleSaveAudio = async () => {
+    try {
+      if (!selectedText?.trim()) return;
+      const target = `${FileSystem.documentDirectory}STTS-${Date.now()}.wav`;
+      await exportLastAudio(target);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(target, { mimeType: 'audio/wav', dialogTitle: 'ذخیره یا اشتراک فایل صوتی STTS' });
+      }
+    } catch (err) {
+      Alert.alert('ذخیره صدا', err instanceof Error ? err.message : 'ذخیره فایل صوتی ناموفق بود.');
+    }
   };
 
   return (
@@ -177,6 +193,7 @@ export function MainPanel() {
         status={tts.status}
         onPlay={handlePlaySelectedText}
         onStop={() => tts.stop().catch(() => {})}
+        onSave={handleSaveAudio}
       />
 
 
