@@ -1,5 +1,5 @@
 import React, { useEffect, useReducer, useState } from 'react';
-import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
@@ -9,6 +9,7 @@ import { HistoryPanel, HistoryItem } from './HistoryPanel';
 import { useOverlayBubble } from './useOverlayBubble';
 import { useSttBubbleTap } from './useSttBubbleTap';
 import { useStt } from '../stt/useStt';
+import { VOSK_EN_MODEL_PATH, VOSK_FA_MODEL_PATH } from '../stt/vosk-bridge';
 import { useTts } from '../tts/useTts';
 import { openAccessibilitySettings } from '../../../modules/typing-module/src';
 import { initHistoryDb, getRecentHistory } from '../../shared/services/history-store';
@@ -22,7 +23,8 @@ export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [externalTtsText, setExternalTtsText] = useState<string | null>(null);
-  const stt = useStt();
+  const [sttLanguage, setSttLanguage] = useState<'fa' | 'en'>('fa');
+  const stt = useStt(sttLanguage === 'fa' ? VOSK_FA_MODEL_PATH : VOSK_EN_MODEL_PATH);
   const tts = useTts();
   const isListening = stt.session.state === 'listening';
   useSttBubbleTap(stt);
@@ -182,16 +184,18 @@ export function MainPanel() {
       {state.micPanelOpen && state.activeFeature === 'stt' && (
         <MicPanel
           isListening={isListening}
-          languageLabel="فا"
+          languageLabel={sttLanguage === "fa" ? "فا" : "EN"}
           onClose={() => {
             if (isListening) stt.stop().catch(() => {});
             dispatch({ type: 'CLOSE_MIC_PANEL' });
           }}
           onToggleMic={handleToggleMic}
-          onLanguagePress={() => Alert.alert(
-            'زبان STT',
-            'در نسخه فعلی موتور Vosk فقط مدل فارسی فعال است؛ انتخاب EN هنوز به موتور انگلیسی متصل نشده و عمداً غیرفعال نگه داشته شده است.',
-          )}
+          onLanguagePress={() => {
+            if (isListening) {
+              stt.stop().catch(() => {});
+            }
+            setSttLanguage((language) => (language === 'fa' ? 'en' : 'fa'));
+          }}
         />
       )}
 
