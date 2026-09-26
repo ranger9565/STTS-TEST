@@ -4,14 +4,11 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, StyleSheet, I18nManager } from 'react-native';
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initializeApp, InitStatus } from '../src/shared/services/app-init';
-
-// اجبار راست‌چین برای کل اپ
-I18nManager.forceRTL(true);
 
 const PHASE_LABELS: Record<InitStatus['phase'], string> = {
   idle: '',
