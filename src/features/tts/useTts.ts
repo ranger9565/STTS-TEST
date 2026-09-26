@@ -64,8 +64,10 @@ export function useTts(
       await stopSpeaking();
 
       setStatus('synthesizing');
-      await speak(text, () => setStatus('idle'));
+      // speak() starts playback and returns immediately; the callback owns the
+      // transition back to idle when playback actually finishes.
       setStatus('playing');
+      await speak(text, () => setStatus('idle'));
     } catch (err) {
       const e = err instanceof Error ? err : new Error(String(err));
       setError(e);
