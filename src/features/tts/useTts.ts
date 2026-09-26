@@ -12,8 +12,6 @@ export type TtsStatus = 'idle' | 'synthesizing' | 'playing' | 'error';
 
 export interface UseTtsResult {
   status: TtsStatus;
-  positionMs: number;
-  durationMs: number;
   speak: (text: string) => Promise<void>;
   stop: () => Promise<void>;
   error: Error | null;
@@ -25,8 +23,6 @@ export function useTts(
 ): UseTtsResult {
   const [status, setStatus] = useState<TtsStatus>('idle');
   const [error, setError] = useState<Error | null>(null);
-  const [positionMs, setPositionMs] = useState(0);
-  const [durationMs, setDurationMs] = useState(0);
   const initializedRef = useRef(false);
   const initPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -85,5 +81,5 @@ export function useTts(
     setStatus('idle');
   }, []);
 
-  return { status, speak: speakText, stop, error, positionMs, durationMs };
+  return { status, speak: speakText, stop, error };
 }
