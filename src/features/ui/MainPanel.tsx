@@ -193,7 +193,7 @@ export function MainPanel() {
         status={tts.status}
         onPlay={handlePlaySelectedText}
         onStop={() => tts.stop().catch(() => {})}
-        onSave={hasLastAudio() ? handleSaveAudio : undefined}
+        onSave={selectedText && tts.hasAudioFor(selectedText) && hasLastAudio() ? handleSaveAudio : undefined}
       />
 
 
