@@ -13,9 +13,6 @@ import { initializeApp, InitStatus } from '../src/shared/services/app-init';
 const PHASE_LABELS: Record<InitStatus['phase'], string> = {
   idle: '',
   extracting_models: 'آماده‌سازی مدل‌های هوش مصنوعی...',
-  loading_vosk: 'بارگذاری موتور صوت‌به‌متن (Vosk)...',
-  loading_piper: 'بارگذاری موتور متن‌به‌صوت (Piper)...',
-  loading_tesseract: 'بارگذاری موتور اسکنر (Tesseract)...',
   ready: 'آماده',
   error: 'خطا در راه‌اندازی',
 };
