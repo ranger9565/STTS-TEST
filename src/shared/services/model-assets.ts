@@ -8,11 +8,12 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 
-const MODEL_VERSION = '2.0.0';
+const MODEL_VERSION = '3.0.0';
 const VERSION_FILE = `${FileSystem.documentDirectory}.model_version`;
 
 const ASSET_ROOT = {
-  vosk: 'vosk/vosk-model-small-fa-0.42',
+  voskFa: 'vosk/vosk-model-small-fa-0.42',
+  voskEn: 'vosk/vosk-model-small-en-us-0.15',
   piper: 'piper',
   espeak: 'espeak-ng-data',
   tessdata: 'tessdata',
@@ -20,6 +21,7 @@ const ASSET_ROOT = {
 
 export interface ModelPaths {
   voskModelPath: string;
+  voskEnModelPath: string;
   piperModelsDir: string;
   espeakDataDir: string;
   tessDataPath: string;
@@ -38,6 +40,7 @@ export async function ensureModelsReady(): Promise<ModelPaths> {
 
   const paths: ModelPaths = {
     voskModelPath: `${documentDirectory}vosk-model-small-fa-0.42`,
+    voskEnModelPath: `${documentDirectory}vosk-model-small-en-us-0.15`,
     piperModelsDir: `${documentDirectory}piper-models`,
     espeakDataDir: `${documentDirectory}espeak-ng-data`,
     tessDataPath: documentDirectory,
@@ -45,6 +48,7 @@ export async function ensureModelsReady(): Promise<ModelPaths> {
 
   const requiredDestinations = [
     paths.voskModelPath,
+    paths.voskEnModelPath,
     `${paths.piperModelsDir}/fa_IR-gyro-medium.onnx`,
     `${paths.piperModelsDir}/fa_IR-gyro-medium.onnx.json`,
     `${paths.piperModelsDir}/en_US-lessac-medium.onnx`,
@@ -75,8 +79,13 @@ export async function ensureModelsReady(): Promise<ModelPaths> {
 
   await copyBundledDirectory(
     bundleDirectory,
-    ASSET_ROOT.vosk,
+    ASSET_ROOT.voskFa,
     paths.voskModelPath,
+  );
+  await copyBundledDirectory(
+    bundleDirectory,
+    ASSET_ROOT.voskEn,
+    paths.voskEnModelPath,
   );
   await copyBundledDirectory(
     bundleDirectory,
