@@ -49,19 +49,25 @@ export function useStt(modelPath: string = VOSK_MODEL_PATH): UseSttResult {
   const [partialText, setPartialText] = useState('');
   const [error, setError] = useState<Error | null>(null);
   const [isTypingEnabled, setIsTypingEnabled] = useState(false);
-  const initializedRef = useRef(false);
-
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
-
-    initVosk({ modelPath }).catch((err) => {
-      setError(err instanceof Error ? err : new Error(String(err)));
-    });
-
+    let cancelled = false;
+    setError(null);
     setIsTypingEnabled(isAccessibilityServiceEnabled());
 
+    (async () => {
+      try {
+        await destroyVosk().catch(() => {});
+        if (cancelled) return;
+        await initVosk({ modelPath });
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err : new Error(String(err)));
+        }
+      }
+    })();
+
     return () => {
+      cancelled = true;
       destroyVosk().catch(() => {});
     };
   }, [modelPath]);
