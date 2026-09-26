@@ -4,6 +4,12 @@
  */
 import * as SQLite from 'expo-sqlite';
 
+export interface StoredAppSettings {
+  language: 'fa' | 'en';
+  voiceGender: 'female' | 'male';
+  playbackSpeed: number;
+}
+
 export interface HistoryRecord {
   id: string;
   text: string;
@@ -30,7 +36,41 @@ export function initHistoryDb(): void {
       sourceLabel TEXT NOT NULL,
       createdAt INTEGER NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY NOT NULL,
+      value TEXT NOT NULL
+    );
   `);
+}
+
+export function loadAppSettings(defaults: StoredAppSettings): StoredAppSettings {
+  initHistoryDb();
+  const rows = getDb().getAllSync<{ key: string; value: string }>(
+    'SELECT key, value FROM app_settings;',
+  );
+  const result = { ...defaults };
+  for (const row of rows) {
+    if (row.key === 'language' && (row.value === 'fa' || row.value === 'en')) result.language = row.value;
+    if (row.key === 'voiceGender' && (row.value === 'female' || row.value === 'male')) result.voiceGender = row.value;
+    if (row.key === 'playbackSpeed') {
+      const speed = Number(row.value);
+      if (Number.isFinite(speed)) result.playbackSpeed = speed;
+    }
+  }
+  return result;
+}
+
+export function saveAppSettings(settings: StoredAppSettings): void {
+  initHistoryDb();
+  const database = getDb();
+  database.withTransactionSync(() => {
+    for (const [key, value] of Object.entries(settings)) {
+      database.runSync(
+        'INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?);',
+        [key, String(value)],
+      );
+    }
+  });
 }
 
 /** افزودن یک نتیجه‌ی جدید به تاریخچه (مثلاً هر جمله‌ی نهایی STT) */
