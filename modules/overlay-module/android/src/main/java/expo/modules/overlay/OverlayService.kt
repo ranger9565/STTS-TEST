@@ -460,6 +460,7 @@ class OverlayService : Service() {
     }
 
     private fun removeBubble(mode: String) {
+        activeModes.remove(mode)
         val state = bubbles.remove(mode) ?: return
         cancelHoldTimer(state)
         hideCloseTarget(state)
