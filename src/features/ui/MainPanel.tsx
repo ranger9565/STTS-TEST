@@ -1,9 +1,10 @@
 import React, { useEffect, useReducer, useState } from 'react';
-import { Alert, View, Text, Pressable, StyleSheet } from 'react-native';
+import { Alert, View, Text, Pressable, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Linking from 'expo-linking';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
 import { panelReducer, initialPanelState } from '../../shared/services/panel-state';
 import { MicPanel } from './MicPanel';
 import { AudioBar } from './AudioBar';
@@ -26,6 +27,7 @@ export function MainPanel() {
   const [state, dispatch] = useReducer(panelReducer, initialPanelState);
   const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
   const [externalTtsText, setExternalTtsText] = useState<string | null>(null);
+  const [ttsText, setTtsText] = useState('');
   const [sttLanguage, setSttLanguage] = useState<'fa' | 'en'>('fa');
   const stt = useStt(sttLanguage === 'fa' ? VOSK_FA_MODEL_PATH : VOSK_EN_MODEL_PATH);
   const tts = useTts();
@@ -68,6 +70,7 @@ export function MainPanel() {
         const text = typeof queryParams?.text === 'string' ? queryParams.text : null;
         if (!text?.trim()) return;
         setExternalTtsText(text);
+        setTtsText(text);
         dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
         tts.speak(text).catch(() => {});
       }
@@ -81,13 +84,25 @@ export function MainPanel() {
   const selectedHistoryItem = historyItems.find(
     (item) => item.id === state.selectedHistoryItemId,
   );
-  const selectedText = externalTtsText || selectedHistoryItem?.text || null;
+  const selectedText = ttsText.trim() || externalTtsText || selectedHistoryItem?.text || null;
 
   const handleToggleMic = () => {
     if (isListening) stt.stop().catch(() => {});
     else stt.start().catch(() => {});
   };
 
+  const handlePickTextFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'text/*', copyToCacheDirectory: true, multiple: false });
+      if (result.canceled || !result.assets?.[0]) return;
+      const content = await FileSystem.readAsStringAsync(result.assets[0].uri);
+      setExternalTtsText(null);
+      setTtsText(content);
+      dispatch({ type: 'SELECT_FEATURE', feature: 'tts' });
+    } catch (err) {
+      Alert.alert('فایل', err instanceof Error ? err.message : 'خواندن فایل ناموفق بود.');
+    }
+  };
   const handlePlaySelectedText = () => {
     if (selectedText?.trim()) tts.speak(selectedText).catch(() => {});
   };
@@ -147,12 +162,33 @@ export function MainPanel() {
         </View>
       )}
 
+      {state.activeFeature === 'tts' && (
+        <View style={styles.ttsComposer}>
+          <View style={styles.fileRow}>
+            <Text style={styles.composerTitle}>متن برای خواندن</Text>
+            <Pressable style={styles.fileButton} onPress={handlePickTextFile}>
+              <Text style={styles.fileButtonText}>فایل</Text>
+            </Pressable>
+          </View>
+          <TextInput
+            value={ttsText}
+            onChangeText={(value) => { setExternalTtsText(null); setTtsText(value); }}
+            multiline
+            textAlign="right"
+            writingDirection="rtl"
+            placeholder="متن فارسی یا انگلیسی را وارد کنید..."
+            placeholderTextColor="#8899AA"
+            style={styles.ttsInput}
+          />
+        </View>
+      )}
       <View style={styles.mainRow}>
         <HistoryPanel
           items={historyItems}
           selectedItemId={state.selectedHistoryItemId}
           onSelectItem={(id) => {
             setExternalTtsText(null);
+            setTtsText(historyItems.find((item) => item.id === id)?.text ?? '');
             dispatch({ type: 'SELECT_HISTORY_ITEM', itemId: id });
           }}
         />
@@ -228,6 +264,12 @@ const styles = StyleSheet.create({
   topBar: { flexDirection: 'row-reverse', alignItems: 'center', gap: 12, padding: 8 },
   appTitle: { flex: 1, fontSize: 18, fontWeight: '700', textAlign: 'center', writingDirection: 'rtl' },
   topIcon: { fontSize: 20, minWidth: 28, textAlign: 'center' },
+  ttsComposer: { marginHorizontal: 8, marginBottom: 6, padding: 10, borderRadius: 12, backgroundColor: '#18232E' },
+  fileRow: { flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 },
+  composerTitle: { fontSize: 12, textAlign: 'right', writingDirection: 'rtl' },
+  fileButton: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 8, backgroundColor: '#2A3A4A' },
+  fileButtonText: { fontSize: 11 },
+  ttsInput: { minHeight: 92, maxHeight: 180, padding: 10, borderRadius: 9, backgroundColor: '#0F1923', color: '#FFFFFF', fontSize: 14, lineHeight: 22 },
   mainRow: { flex: 1, flexDirection: 'row-reverse', paddingHorizontal: 8, gap: 8 },
   buttonColumn: { width: 72, gap: 8 },
   featureButton: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
