@@ -18,9 +18,8 @@ interface MicPanelProps {
 /**
  * پنل مستطیلی میکروفون: سه بخش — ضربدر (بستن) / میکروفون (شروع‌توقف تایپ صوتی) / پرچم (زبان).
  *
- * این کامپوننت فقط نمایش و تعامل بصری است؛ اتصال واقعی به موتور Vosk
- * (از طریق src/features/stt/vosk-bridge.ts و AccessibilityService برای تایپ
- * در فیلد فوکوس‌شده‌ی هر اپ دیگر) در فاز بعد انجام می‌شود.
+ * این کامپوننت فقط UI پنل را می‌سازد؛ اتصال Vosk و AccessibilityService
+ * از طریق callbackهای واقعی والد انجام می‌شود.
  */
 export function MicPanel({
   isListening,
