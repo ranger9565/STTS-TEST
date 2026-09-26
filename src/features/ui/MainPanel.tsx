@@ -79,9 +79,6 @@ export function MainPanel() {
     return () => subscription.remove();
   }, [tts.speak]);
 
-  const selectedHistoryItem = historyItems.find(
-    (item) => item.id === state.selectedHistoryItemId,
-  );
   const selectedText = ttsText.trim() || null;
 
   const handleToggleMic = () => {
