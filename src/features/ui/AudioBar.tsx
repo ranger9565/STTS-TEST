@@ -9,7 +9,7 @@ interface AudioBarProps {
   onSave?: () => void;
 }
 
-export function AudioBar({ text, status, onPlay, onStop }: AudioBarProps) {
+export function AudioBar({ text, status, onPlay, onStop, onSave }: AudioBarProps) {
   const canPlay = Boolean(text?.trim()) && status !== 'synthesizing';
 
   return (
@@ -24,6 +24,16 @@ export function AudioBar({ text, status, onPlay, onStop }: AudioBarProps) {
           {status === 'playing' ? '⏸' : status === 'synthesizing' ? '…' : '▶'}
         </Text>
       </Pressable>
+      {onSave && (
+        <Pressable
+          accessibilityLabel="ذخیره فایل صوتی"
+          disabled={!text?.trim() || status === 'synthesizing'}
+          onPress={onSave}
+          style={!text?.trim() || status === 'synthesizing' ? styles.disabled : undefined}
+        >
+          <Text style={styles.actionIcon}>ذخیره</Text>
+        </Pressable>
+      )}
       <View style={styles.timeline}>
         <View style={[styles.timelineFill, status === 'playing' && styles.timelinePlaying]} />
       </View>
@@ -50,6 +60,7 @@ const styles = StyleSheet.create({
     margin: 8,
   },
   playIcon: { fontSize: 20 },
+  actionIcon: { fontSize: 11 },
   timeline: { flex: 1, height: 4, borderRadius: 2, overflow: 'hidden' },
   timelineFill: { height: 4, width: '0%', borderRadius: 2 },
   timelinePlaying: { width: '35%' },
