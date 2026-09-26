@@ -39,7 +39,9 @@ export interface VoskBridgeConfig {
 const DEFAULT_SAMPLE_RATE = 16000;
 
 /** مسیر پیش‌فرض مدل فارسی Vosk در فضای ذخیره‌سازی اپ */
-export const VOSK_MODEL_PATH = `${FileSystem.documentDirectory}vosk-model-small-fa-0.42`;
+export const VOSK_FA_MODEL_PATH = `${FileSystem.documentDirectory}vosk-model-small-fa-0.42`;
+export const VOSK_EN_MODEL_PATH = `${FileSystem.documentDirectory}vosk-model-small-en-us-0.15`;
+export const VOSK_MODEL_PATH = VOSK_FA_MODEL_PATH;
 
 let isInitialized = false;
 let isListening = false;
@@ -47,7 +49,10 @@ let activeSubscriptions: { remove: () => void }[] = [];
 
 /** مقداردهی اولیه موتور Vosk — یک بار در startup اپ */
 export async function initVosk(config: VoskBridgeConfig): Promise<void> {
-  if (isInitialized) return;
+  if (isInitialized) {
+    await voskDestroy();
+    isInitialized = false;
+  }
   await voskInit(config.modelPath);
   isInitialized = true;
 }
