@@ -265,7 +265,10 @@ class OverlayService : Service() {
     }
 
     private fun showBubble(mode: String) {
-        if (bubbles.containsKey(mode)) return
+        bubbles[mode]?.let { existing ->
+            existing.view.visibility = View.VISIBLE
+            return
+        }
 
         val icon = when (mode) {
             "ocr" -> "📷"
