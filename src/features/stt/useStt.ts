@@ -7,7 +7,7 @@
  * هر نتیجه‌ی نهایی در تاریخچه‌ی محلی (SQLite) هم ذخیره می‌شود.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   SttSession,
   createSttSession,
