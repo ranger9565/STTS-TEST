@@ -6,6 +6,7 @@ interface AudioBarProps {
   status: 'idle' | 'synthesizing' | 'playing' | 'error';
   onPlay: () => void;
   onStop: () => void;
+  onSave?: () => void;
 }
 
 export function AudioBar({ text, status, onPlay, onStop }: AudioBarProps) {
