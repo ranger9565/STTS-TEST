@@ -135,6 +135,10 @@ export async function speak(
 }
 
 /** ذخیره خروجی صوتی آخرین synthesis به عنوان فایل قابل اشتراک‌گذاری */
+export function hasLastAudio(): boolean {
+  return lastAudioPath !== null;
+}
+
 export async function exportLastAudio(savePath: string): Promise<void> {
   if (!lastAudioPath) {
     throw new Error('No synthesized audio is available to export');
